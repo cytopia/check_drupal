@@ -45,11 +45,7 @@ The above service defintion will check against security updates (with nagios err
 
 ## 2. Usage
 
-
-### 2.1 `-l` aka `check_drupal_log`
-
-
-### 2.2 `check_drupal`
+### 2.1 `check_drupal`
 
 **Note:** Currently the `-l` option is not yet implemented, but will so in a few days/weeks.  
 With `-l` you will be able to run the `check_drupal` locally on each machine only a few times a day and dump the output to a logfile.
@@ -116,7 +112,7 @@ For each check you can specify the nagios severity (error or warning).
   --version              Show version information.
 ```
 
-### 2.3 `check_drupal_log`
+### 2.2 `check_drupal_log`
 
 To be implemented (1-2 weeks)
 

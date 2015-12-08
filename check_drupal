@@ -1,0 +1,899 @@
+#!/bin/sh
+#
+# Nagios plugin to monitor the state of drupal sites.
+#
+
+
+#
+# TODO: optional via logfilea
+# TODO: drush updatedb-status
+#
+#
+
+
+################################################################################
+#
+# V A R I A B L E S
+#
+################################################################################
+
+# Some creds
+INFO_AUTHOR="Patrick Plocke <patrick@plocke.de>"
+INFO_GPGKEY="0x28BF179F"
+INFO_DATE="2015-12-07"
+INFO_LICENSE="MIT"
+INFO_VERSION="0.1"
+
+# Get the path
+export PATH="$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+
+# Nagios error codes
+EXIT_OK=0
+EXIT_WARN=1
+EXIT_ERR=2
+EXIT_UNKNOWN=3
+
+
+# Locale command prefix
+if locale -a | grep 'en_US.UTF-8' > /dev/null 2>&1; then
+	LOCALE="en_US.UTF-8"
+else
+	LOCALE="C"
+fi
+
+# Might come in handy later
+#PHP_OPTS="-d intl.default_locale='en_US'"
+
+# Drush executeable
+DRUSH="$(which drush 2>/dev/null)"
+
+
+
+
+################################################################################
+#
+# F U N C T I O N S
+#
+################################################################################
+
+############################################################
+# Helper
+############################################################
+
+# Trim leading and trailing whitespace
+# @param  string  The input string
+# @output string  The output string
+# @return 0
+trim() {
+	_str="${1}"
+	echo "${_str}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
+}
+
+# Remove empty lines
+# @param  string  The input string
+# @output string  The output string
+# @return 0
+trim_lines() {
+	_str="${1}"
+	echo "${_str}" | grep -v '^$'
+}
+
+
+# Aggregate nagios exit code.
+# OK < Warning < Error < Unknown
+# @param  integer The current exit code.
+# @param  integer The new exit code
+# @output integer The combined exit code
+# @return integer The combined exit code
+merge_exit_codes() {
+	_curr_exit="$1"
+	_next_exit="$2"
+
+	# OK
+	if [ "${_curr_exit}" = "0" ]; then
+		_curr_exit="${_next_exit}"
+	# Warning
+	elif [ "${_curr_exit}" = "1" ]; then
+		if [ "${_next_exit}" = "0" ]; then
+			_curr_exit="1"
+		elif [ "${_next_exit}" = "1" ]; then
+			_curr_exit="1"
+		elif [ "${_next_exit}" = "2" ]; then
+			_curr_exit="2"
+		elif [ "${_next_exit}" = "3" ]; then # UNKNOWN -> WARNING
+			_curr_exit="1"
+		fi
+	# Error
+	elif [ "${_curr_exit}" = "2" ]; then
+		_curr_exit="2"
+	# Unknown
+	elif [ "${_curr_exit}" = "3" ]; then
+		if [ "${_next_exit}" = "0" ]; then
+			_curr_exit="3"
+		elif [ "${_next_exit}" = "1" ]; then
+			_curr_exit="1"
+		elif [ "${_next_exit}" = "2" ]; then
+			_curr_exit="2"
+		elif [ "${_next_exit}" = "3" ]; then # UNKNOWN -> WARNING
+			_curr_exit="3"
+		fi
+	fi
+	echo "${_curr_exit}"
+	return ${_curr_exit}
+}
+
+
+# Merge two texts with a delimiter
+#
+# @param  string  The current text
+# @param  string  The new text
+# @param  string  The separator
+# @output stringr The combined text
+merge_text() {
+	_curr_text="$1"
+	_next_text="$2"
+	_separator="$3"
+
+	if [ "$_separator" = "" ]; then
+		_separator="\n"
+	fi
+
+	if [ "$_curr_text" = "" ]; then
+		_curr_text="$_next_text"
+	else
+		_curr_text="${_curr_text}${_separator}${_next_text}"
+	fi
+	echo "${_curr_text}"
+}
+
+
+# Prepend each line with a prefix
+# @param  string  The text (multiline)
+# @param  string  The prefix to prepend to each lines
+# @outpt  string  The new string
+prepend_line() {
+	_text="${1}"
+	_prefix="${2}"
+
+	echo "${_text}" | awk -v pre="${_prefix}" '{print pre""$0}'
+}
+
+############################################################
+# Drupal helper
+############################################################
+
+# Some hacky way to tell if it is the drupal
+# directory root.
+# @param  string  Path to Drupal root
+# @return integer 0: OK | 1: Not OK
+is_drupal_root() {
+	# Test if directory exists
+	if [ ! -d "${1}" ]; then
+		return 1
+	fi
+
+	# Test for index.php
+	if [ ! -f "${1}/index.php" ]; then
+		return 1
+	fi
+
+	if [ ! -f "${1}/includes/bootstrap.inc" ]; then
+		return 1
+	fi
+
+	# Test for drupal constant
+	if ! grep 'DRUPAL_ROOT' "${1}/index.php" 1>/dev/null; then
+		return 1
+	fi
+	return 0
+}
+
+
+############################################################
+# Drush check functions
+############################################################
+
+_ALL_UPDATES=""
+_ALL_UPDATES_CHECKED=0
+_ALL_UPDATES_RETURN=0
+
+_get_all_updates() {
+
+	# If we have already checked it, return it
+	# (check_update and check_security_update will both check it.)
+	if [ "${_ALL_UPDATES_CHECKED}" -eq 1 ]; then
+		echo "${_ALL_UPDATES}"
+		return "${_ALL_UPDATES_RETURN}"
+	fi
+
+	# Mark as checked
+	_ALL_UPDATES_CHECKED=1
+
+	_drupal_root="${1}"
+
+	# go to drupal root dir if it exists,
+	# otherwise return
+	cd "${_drupal_root}"
+	if [ $? -ne 0 ]; then
+		_ALL_UPDATES_RETURN="$EXIT_UNKNOWN"
+		return $EXIT_UNKNOWN
+	fi
+	# read comma separated security updates
+	_sec_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} pm-updatestatus --nocolor --format=csv --fields='name,installed version,proposed version,message' 2> /dev/null)"
+
+	# Error might have multiple causes...
+	# Drupal database not connected?
+	# Drupal root wrong?
+	if [ $? -ne 0 ]; then
+		_ALL_UPDATES_CHECKED=1
+		_ALL_UPDATES_RETURN="$EXIT_UNKNOWN"
+		return $EXIT_UNKNOWN
+	fi
+
+
+	_ALL_UPDATES_CHECKED=1
+	_ALL_UPDATES="${_sec_updates}"
+
+	# tango out
+	echo "${_ALL_UPDATES}"
+	return $EXIT_OK
+}
+
+
+# Check if security updates are required.
+# @param  string  Path to Drupal root.
+# @output string  Drupal Security Updates.
+# @return integer Nagios exit code.
+check_security_updates() {
+
+	_drupal_root="${1}"
+
+	# Get all updates (cached if we have done it before)
+	_sec_updates="$(_get_all_updates "${_drupal_root}")"
+
+	# Error might have multiple causes...
+	# Drupal database not connected?
+	# Drupal root wrong?
+	if [ $? -ne 0 ]; then
+		return $EXIT_UNKNOWN
+	fi
+
+	# Remove normal updates and only keep security updates
+	_sec_updates="$(echo "${_sec_updates}" | grep 'SECURITY UPDATE')"
+
+
+	if [ "${_sec_updates}" != "" ]; then
+		# Format security updates
+		# "<name> <ver> -> <ver>"
+		_sec_updates="$(echo "${_sec_updates}" | awk 'BEGIN {FS=","} ; { print $1" "$2" -> "$3 }')"
+
+		# Prepend text
+		_sec_updates="$(prepend_line "${_sec_updates}" "[sec update] ")"
+
+		# tango out
+		echo "${_sec_updates}"
+		return $EXIT_ERR
+	fi
+	return $EXIT_OK
+}
+
+check_updates() {
+
+	_drupal_root="${1}"
+
+	# Get all updates (cached if we have done it before)
+	_sec_updates="$(_get_all_updates "${_drupal_root}")"
+
+	# Error might have multiple causes...
+	# Drupal database not connected?
+	# Drupal root wrong?
+	if [ $? -ne 0 ]; then
+		return $EXIT_UNKNOWN
+	fi
+
+	# Remove security updates and only keep normal updates
+	_sec_updates="$(echo "${_sec_updates}" | grep -v 'SECURITY UPDATE')"
+
+
+	if [ "${_sec_updates}" != "" ]; then
+		# Format security updates
+		# "<name> <ver> -> <ver>"
+		_sec_updates="$(echo "${_sec_updates}" | awk 'BEGIN {FS=","} ; { print $1" "$2" -> "$3 }')"
+
+		# Prepend text
+		_sec_updates="$(prepend_line "${_sec_updates}" "[update] ")"
+
+		# tango out
+		echo "${_sec_updates}"
+		return $EXIT_ERR
+	fi
+	return $EXIT_OK
+}
+
+# Check if core errors are present.
+# @param  string  Path to Drupal root.
+# @output string  Drupal Core errors.
+# @return integer Nagios exit code.
+check_core_errors() {
+
+	_drupal_root="${1}"
+
+	# go to drupal root dir if it exists,
+	# otherwise return
+	cd "${_drupal_root}" || return 3
+
+	# read comma separated security updates
+	_core_errors="$(LC_MESSAGES=${LOCALE} ${DRUSH} core-requirements --severity=2 --no-field-labels --format=table --fields='severity,title' 2>/dev/null)"
+
+	# Error might have multiple causes...
+	# Drupal database not connected?
+	# Drupal root wrong?
+	if [ $? -ne 0 ]; then
+		return $EXIT_UNKNOWN
+	fi
+
+	# Trim the string
+	_core_errors="$(trim_lines "${_core_errors}")"
+	_core_errors="$(trim "${_core_errors}")"
+
+	# Format output
+	# "ERROR    <short desc>"
+	if [ "${_core_errors}" != "" ]; then
+
+		# Remove leading 'error'
+		_core_errors="$(echo "${_core_errors}" | awk '{for (i=2; i<NF; i++) printf $i " "; print $NF}')"
+
+		# Prepend text
+		_core_errors="$(prepend_line "${_core_errors}" "[core error] ")"
+		echo "${_core_errors}"
+		return $EXIT_ERR
+	fi
+
+	return $EXIT_OK
+}
+
+# Check if core warnings are present.
+# @param  string  Path to Drupal root.
+# @output string  Drupal Core errors.
+# @return integer Nagios exit code.
+check_core_warnings() {
+
+	_drupal_root="${1}"
+
+	# go to drupal root dir if it exists,
+	# otherwise return
+	cd "${_drupal_root}" || return 3
+
+	# read comma separated security updates
+	_core_warnings="$(LC_MESSAGES=${LOCALE} ${DRUSH} core-requirements --severity=1 --no-field-labels --format=table --fields='severity,title' 2>/dev/null)"
+
+	# Error might have multiple causes...
+	# Drupal database not connected?
+	# Drupal root wrong?
+	if [ $? -ne 0 ]; then
+		return $EXIT_UNKNOWN
+	fi
+
+
+	# Only keep "Warnung", "Warning", ... TODO: Other languages or make it outut always in english
+	# But how???
+	_core_warnings="$(echo "${_core_warnings}" | grep -E 'Warning|Warnung')"
+
+	# Trim the string
+	_core_warnings="$(trim_lines "${_core_warnings}")"
+	_core_warnings="$(trim "${_core_warnings}")"
+
+	# Format output
+	# "ERROR    <short desc>"
+	if [ "${_core_warnings}" != "" ]; then
+
+		# Remove leading 'error'
+		_core_warnings="$(echo "${_core_warnings}" | awk '{for (i=2; i<NF; i++) printf $i " "; print $NF}')"
+
+		# Prepend text
+		_core_warnings="$(prepend_line "${_core_warnings}" "[core warning] ")"
+		echo "${_core_warnings}"
+		return $EXIT_ERR
+	fi
+
+	return $EXIT_OK
+}
+
+# Check if the database requires updates.
+# @param  string  Path to Drupal root.
+# @output string  Required db updates.
+# @return integer Nagios exit code.
+check_db_updates() {
+	# TODO: implement
+	return 0
+}
+
+
+############################################################
+# Program Functions
+############################################################
+
+# Give some creds
+# @output string  The creds.
+# @return integer 0
+version() {
+	printf "Version: %s (%s)\n" "${INFO_VERSION}" "${INFO_DATE}"
+	printf "Author:  %s (%s)\n" "${INFO_AUTHOR}" "${INFO_GPGKEY}"
+	printf "License: %s\n" "${INFO_LICENSE}"
+	return 0
+}
+
+# Check requirements.
+# @output string  The requirements.
+# @return integer 0 on success, 2 on fail
+check() {
+	if command -v drush > /dev/null 2>&1; then
+		echo "[OK] drush found"
+		return $NAGIOS_ERROR
+	else
+		echo "[ERR] drush not found"
+		return $NAGIOS_OK
+	fi
+}
+
+# Usage
+# @output string  The usage screen.
+# @return integer 0
+print_usage() {
+	printf "Usage: %s -d <drupal root> [-n <name>] [-s <w|e>] [-u <w|e>] [-e <w|e>] [-w <w|e>] [-m <w|e>] [-l <log file>]\n" "$(basename "$0")"
+	printf "OR     %s --check\n" "$(basename "$0")"
+	printf "OR     %s --help\n" "$(basename "$0")"
+	printf "OR     %s --version\n\n" "$(basename "$0")"
+	return 0
+}
+
+# Help
+# @output string  The help screen.
+# @return integer 0
+print_help() {
+
+	# Show usage first
+	print_usage
+
+	# Show help and details
+	printf "Nagios plugin that will check drupal sites for errors.\n"
+	printf "Errors include the following: available security updates,\n"
+	printf "missed database updates and drupal status errors.\n"
+	printf "For each check you can specify the nagios severity (error or warning).\n\n"
+
+	printf "  -d <drupal root>       The full path to the drupal document root (usually\n"
+	printf "                         the 'drupal' folder. This parameter is required.\n\n"
+
+	printf "  -n <name>              [optional] Specify a name for the drupal instance to\n"
+	printf "                         appear on the nagios output. The default is 'Drupal'\n\n"
+
+	printf "                         the 'drupal' folder. This parameter is required.\n\n"
+
+	printf "  -s <w|e>               [optional] Check for drupal core and module security\n"
+	printf "                         updates and return nagios error or warning.\n"
+	printf "                         Warning:  -s w\n"
+	printf "                         Error:    -s e\n\n"
+
+	printf "  -u <w|e>               [optional] Check for drupal core and module updates\n"
+	printf "                         in general and return nagios error or warning.\n"
+	printf "                         Warning:  -u w\n"
+	printf "                         Error:    -u e\n\n"
+
+	printf "  -e <w|e>               [optional] Check for drupal status errors and return\n"
+	printf "                         nagios error or warning.\n"
+	printf "                         Warning:  -e w\n"
+	printf "                         Error:    -e e\n\n"
+
+	printf "  -w <w|e>               [optional] Check for drupal status warnings and return\n"
+	printf "                         nagios error or warning.\n"
+	printf "                         Warning:  -w w\n"
+	printf "                         Error:    -w e\n\n"
+
+	printf "  -m <w|e>               [optional] Check for drupal missed database updates\n"
+	printf "                         and return nagios error or warning. (They can occur\n"
+	printf "                         when you update core or modules and forget the db).\n"
+	printf "                         Warning:  -m w\n"
+	printf "                         Error:    -m e\n\n"
+
+	printf "  -l <log file>          [optional] Instead of checking all of the above via nagios\n"
+	printf "                         every five minutes or so, run this script via cron once a day\n"
+	printf "                         (or twice) and write the output into a logfile. This logfile can\n"
+	printf "                         then be checked by the nagios plugin 'check_drupal_log' which is\n"
+	printf "                         less costy in terms of load/cpu.\n"
+	printf "                         See 'check_drupal_log --help' for more info.\n"
+	printf "                         Example:\n"
+	printf "                         check_drupal -d /var/www -s e -e e -w w -l /var/log/drupal.log\n"
+	printf "                         check_drupal_log -l /var/log/drupal.log\n\n"
+
+	printf "  --check                Check for program requirements.\n"
+	printf "  --help                 Show this help\n"
+	printf "  --version              Show version information.\n"
+	return 0
+}
+
+
+
+################################################################################
+#
+# E N T R Y   P O I N T
+#
+################################################################################
+
+############################################################
+# Check for --check, --help or --version arguments
+############################################################
+if [ "${1}" = "--check" ]; then
+	check
+	exit $EXIT_OK
+fi
+if [ "${1}" = "--help" ]; then
+	print_help
+	exit $EXIT_OK
+fi
+if [ "${1}" = "--version" ]; then
+	print_version
+	exit $EXIT_OK
+fi
+
+
+############################################################
+# Check requirements
+############################################################
+
+# Do we have 'drush'?
+if ! command -v drush > /dev/null 2>&1 ; then
+	printf "[UNKNOWN] 'drush' not found.\n"
+	exit $EXIT_UNKNOWN
+fi
+
+# Is the drupal document root specified?
+DRUPAL_ROOT=""
+_found=0
+for arg in "$@"; do
+	# Loop while we have not yet found '-d'
+	if [ "${_found}" = "0" ]; then
+
+		# We have found it, the next argument
+		# in the next loop round will be
+		# the directory itself.
+		if [ "${arg}" = "-d" ]; then
+			_found=1
+		fi
+	else
+		# First next loop round after finding '-d'
+		# This must be the drupal root.
+		DRUPAL_ROOT="${arg}"
+
+		# Exit the loop immediately, otherwise we would
+		# keep on overwriting the DRUPAL_ROOT
+		break;
+	fi
+done
+
+# If we haven't found the sucker we need to quit with nagios unknown
+if [ "${_found}" = "0" ]; then
+	printf "[UNKNOWN] Drupal root parameter '-d' not specified.\n"
+	print_usage
+	exit $EXIT_UNKNOWN
+fi
+
+# We are still alive, so let's check if it is a valid drupal doc root
+if ! is_drupal_root "${DRUPAL_ROOT}" > /dev/null 2>&1; then
+	echo "[UNKNOWN] '${DRUPAL_ROOT}' is not a valid drupal root directory."
+	print_usage
+	exit $EXIT_UNKNOWN
+fi
+
+
+############################################################
+# Internal Variables
+############################################################
+
+# Extended Status Message
+MSG_SECURITY_UPDATE=""
+MSG_UPDATE=""
+MSG_CORE_ERROR=""
+MSG_CORE_WARNING=""
+MSG_DB_UPDATE=""
+
+# Info for normal Status message if there is an error/warning
+HAS_SECURITY_UPDATE_ERROR=""
+HAS_UPDATE_ERROR=""
+HAS_CORE_ERR_ERROR=""
+HAS_CORE_WARN_ERROR=""
+HAS_DB_UPDATE_ERROR=""
+
+# Count warnings and errors for performance data
+CNT_ALL=0
+CNT_OK=0
+CNT_ERROR=0
+CNT_WARNING=0
+
+# Final exit code
+NAGIOS_EXIT="${EXIT_OK}"
+
+# If we are going to log to a file
+# the path will be in here
+# TODO:
+#LOG_TO_FILE=""
+
+# Default value
+DRUPAL_NAME="Drupal"
+
+############################################################
+# Eval arguments
+############################################################
+
+while test -n "$1"; do
+	case "$1" in
+
+		# ---- 0. Drupal root
+		-d)
+			# Already checked, but must be here, otherwise
+			# it will throw an unknown argument.
+
+			# Also shift the next argument, the actual path
+			# to be out of the way
+			shift
+
+			;;
+		# ---- 0. Drupal name
+		-n)
+			# to be out of the way
+			shift
+			DRUPAL_NAME="$1"
+			;;
+
+
+		# ---- 1. Security Updates
+		-s)
+			# Get next arg in list (Exit code)
+			shift
+			SEVERITY="$1"
+
+			# Check valid exit code
+			if [ "$SEVERITY" != "w" ] && [ "$SEVERITY" != "e" ]; then
+				echo "Invalid value \"$SEVERITY\" for option \"-s\"."
+				exit $EXIT_UNKNOWN
+			fi
+			# Execute Command
+			MSG_SECURITY_UPDATE="$(check_security_updates "${DRUPAL_ROOT}")"
+			TMP_EXIT="$?"
+
+			# Merge exit codes
+			if [ "$TMP_EXIT" != "0" ]; then
+				if [ "$SEVERITY" = "e" ]; then
+					CNT_ERROR=$((CNT_ERROR+1))
+					MSG_SECURITY_UPDATE="[CRITICAL]\n${MSG_SECURITY_UPDATE}"
+					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
+				else
+					CNT_WARNING=$((CNT_WARNING+1))
+					MSG_SECURITY_UPDATE="[WARNING]\n${MSG_SECURITY_UPDATE}"
+					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
+				fi
+				HAS_SECURITY_UPDATE_ERROR="true"
+			else
+				CNT_OK=$((CNT_OK+1))
+				MSG_SECURITY_UPDATE="[OK]\n${MSG_SECURITY_UPDATE}"
+				NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
+			fi
+			CNT_ALL=$((CNT_ALL+1))
+			;;
+
+
+		# ---- 2. Any Updates (Not just security)
+		-u)
+			# Get next arg in list (Exit code)
+			shift
+			SEVERITY="$1"
+
+			# Check valid exit code
+			if [ "$SEVERITY" != "w" ] && [ "$SEVERITY" != "e" ]; then
+				echo "Invalid value \"$SEVERITY\" for option \"-u\"."
+				exit $EXIT_UNKNOWN
+			fi
+
+			# Execute Command
+			MSG_UPDATE="$(check_updates "${DRUPAL_ROOT}")"
+			TMP_EXIT="$?"
+
+			# Merge exit codes
+			if [ "$TMP_EXIT" != "0" ]; then
+				if [ "$SEVERITY" = "e" ]; then
+					CNT_ERROR=$((CNT_ERROR+1))
+					MSG_UPDATE="[CRITICAL]\n${MSG_UPDATE}"
+					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
+				else
+					CNT_WARNING=$((CNT_WARNING+1))
+					MSG_UPDATE="[WARNING]\n${MSG_UPDATE}"
+					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
+				fi
+				HAS_UPDATE_ERROR="true"
+			else
+				CNT_OK=$((CNT_OK+1))
+				MSG_UPDATE="[OK]\n${MSG_UPDATE}"
+				NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
+			fi
+			CNT_ALL=$((CNT_ALL+1))
+			;;
+
+
+		# ---- 3. Core errors
+		-e)
+			# Get next arg in list (Exit code)
+			shift
+			SEVERITY="$1"
+
+			# Check valid exit code
+			if [ "$SEVERITY" != "w" ] && [ "$SEVERITY" != "e" ]; then
+				echo "Invalid value \"$SEVERITY\" for option \"-e\"."
+				exit $EXIT_UNKNOWN
+			fi
+
+			# Execute Command
+			MSG_CORE_ERROR="$(check_core_errors "${DRUPAL_ROOT}")"
+			TMP_EXIT="$?"
+
+			# Merge exit codes
+			if [ "$TMP_EXIT" != "0" ]; then
+				if [ "$SEVERITY" = "e" ]; then
+					CNT_ERROR=$((CNT_ERROR+1))
+					MSG_CORE_ERROR="[CRITICAL]\n${MSG_CORE_ERROR}"
+					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
+				else
+					CNT_WARNING=$((CNT_WARNING+1))
+					MSG_CORE_ERROR="[WARNING]\n${MSG_CORE_ERROR}"
+					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
+				fi
+				HAS_CORE_ERR_ERROR="true"
+			else
+				CNT_OK=$((CNT_OK+1))
+				MSG_CORE_ERROR="[OK]\n${MSG_CORE_ERROR}"
+				NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
+			fi
+			CNT_ALL=$((CNT_ALL+1))
+			;;
+
+
+		# ---- 4. Core warnings
+		-w)
+			# Get next arg in list (Exit code)
+			shift
+			SEVERITY="$1"
+
+			# Check valid exit code
+			if [ "$SEVERITY" != "w" ] && [ "$SEVERITY" != "e" ]; then
+				echo "Invalid value \"$SEVERITY\" for option \"-w\"."
+				exit $EXIT_UNKNOWN
+			fi
+
+			# Execute Command
+			MSG_CORE_WARNING="$(check_core_warnings "${DRUPAL_ROOT}")"
+			TMP_EXIT="$?"
+
+			# Merge exit codes
+			if [ "$TMP_EXIT" != "0" ]; then
+				if [ "$SEVERITY" = "e" ]; then
+					CNT_ERROR=$((CNT_ERROR+1))
+					MSG_CORE_WARNING="[CRITICAL]\n${MSG_CORE_WARNING}"
+					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
+				else
+					CNT_WARNING=$((CNT_WARNING+1))
+					MSG_CORE_WARNING="[WARNING]\n${MSG_CORE_WARNING}"
+					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
+				fi
+				HAS_CORE_WARN_ERROR="true"
+			else
+				CNT_OK=$((CNT_OK+1))
+				MSG_CORE_WARNING="[OK]\n${MSG_CORE_WARNING}"
+				NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
+			fi
+			CNT_ALL=$((CNT_ALL+1))
+			;;
+
+
+
+		# ---- 5. Missing DB Updates
+		-m)
+			# Get next arg in list (Exit code)
+			shift
+			SEVERITY="$1"
+
+			# Check valid exit code
+			if [ "$SEVERITY" != "w" ] && [ "$SEVERITY" != "e" ]; then
+				echo "Invalid value \"$SEVERITY\" for option \"-m\"."
+				exit $EXIT_UNKNOWN
+			fi
+
+			# Execute Command
+			MSG_DB_UPDATE="$(check_db_updates "${DRUPAL_ROOT}")"
+			TMP_EXIT="$?"
+
+			# Merge exit codes
+			if [ "$TMP_EXIT" != "0" ]; then
+				if [ "$SEVERITY" = "e" ]; then
+					CNT_ERROR=$((CNT_ERROR+1))
+					MSG_DB_UPDATE="[CRITICAL]\n${MSG_DB_UPDATE}"
+					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
+				else
+					CNT_WARNING=$((CNT_WARNING+1))
+					MSG_DB_UPDATE="[WARNING]\n${MSG_DB_UPDATE}"
+					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
+				fi
+				HAS_DB_UPDATE_ERROR="true"
+			else
+				CNT_OK=$((CNT_OK+1))
+				MSG_DB_UPDATE="[OK]\n${MSG_DB_UPDATE}"
+				NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
+			fi
+			CNT_ALL=$((CNT_ALL+1))
+			;;
+
+
+		#  ---- 6. Log to logfile
+		-l)
+			# Get next arg in list (Exit code)
+			shift
+			# TODO: uncomment
+			#LOG_TO_FILE="$1"
+			;;
+		*)
+			printf "Unknown argument: %s\n" "$1"
+			print_usage
+			exit $EXIT_UNKNOWN
+			;;
+	esac
+	shift
+done
+
+
+############################################################
+# Eval results
+############################################################
+
+# TODO:
+#LOG_TO_FILE=""
+
+#### Build status text
+INFO=""
+if [ "$HAS_SECURITY_UPDATE_ERROR" != "" ]; then
+	INFO="$(merge_text "${INFO}" "Security update(s)" ", ")"
+fi
+if [ "$HAS_UPDATE_ERROR" != "" ]; then
+	INFO="$(merge_text "${INFO}" "Update(s)" ", ")"
+fi
+if [ "$HAS_CORE_ERR_ERROR" != "" ]; then
+	INFO="$(merge_text "${INFO}" "Core error(s)" ", ")"
+fi
+if [ "$HAS_CORE_WARN_ERROR" != "" ]; then
+	INFO="$(merge_text "${INFO}" "Core warning(s)" ", ")"
+fi
+if [ "$HAS_DB_UPDATE_ERROR" != "" ]; then
+	INFO="$(merge_text "${INFO}" "DB update(s)" ", ")"
+fi
+
+
+#### Performance Data
+# @see http://docs.icinga.org/latest/en/perfdata.html
+# 'label'=value[UOM];[warn];[crit];[min];[max]
+
+if [ "$NAGIOS_EXIT" = "$EXIT_OK" ]; then
+	printf "%s | %s\n" "[OK] ${DRUPAL_NAME} is healthy" "'OK'=${CNT_OK};;;0;${CNT_ALL} 'Errors'=${CNT_ERROR};1;1;0;${CNT_ALL} 'Warnings'=${CNT_WARNING};1;;0;${CNT_ALL} 'Unknown'=0;;;0;${CNT_ALL}"
+elif [ "$NAGIOS_EXIT" = "$EXIT_WARN" ]; then
+	printf "%s: %s | %s\n" "[WARN] ${DRUPAL_NAME} has warnings" "${INFO}" "'OK'=${CNT_OK};;;0;${CNT_ALL} 'Errors'=${CNT_ERROR};1;1;0;${CNT_ALL} 'Warnings'=${CNT_WARNING};1;;0;${CNT_ALL} 'Unknown'=0;;;0;${CNT_ALL}"
+elif [ "$NAGIOS_EXIT" = "$EXIT_ERR" ]; then
+	printf "%s: %s | %s\n" "[ERROR] ${DRUPAL_NAME} has errors" "${INFO}" "'OK'=${CNT_OK};;;0;${CNT_ALL} 'Errors'=${CNT_ERROR};1;1;0;${CNT_ALL} 'Warnings'=${CNT_WARNING};1;;0;${CNT_ALL} 'Unknown'=0;;;0;${CNT_ALL}"
+else
+	printf "%s: %s | %s\n" "[UNKNOWN] ${DRUPAL_NAME} is at unknown state - check extended info." "${INFO}" "OK'=0;;;0;${CNT_ALL} 'Errors'=${CNT_ERROR};1;1;0;${CNT_ALL} 'Warnings'=${CNT_WARNING};1;;0;${CNT_ALL} 'Unknown'=1;;;0;${CNT_ALL}"
+fi
+
+
+### Extended status data
+
+if [ "$MSG_SECURITY_UPDATE" != "" ]; then echo "$MSG_SECURITY_UPDATE"; fi
+if [ "$MSG_UPDATE"          != "" ]; then echo "$MSG_UPDATE";          fi
+if [ "$MSG_CORE_ERROR"      != "" ]; then echo "$MSG_CORE_ERROR";      fi
+if [ "$MSG_CORE_WARNING"    != "" ]; then echo "$MSG_CORE_WARNING";    fi
+if [ "$MSG_DB_UPDATE"       != "" ]; then echo "$MSG_DB_UPDATE";       fi
+
+exit "$NAGIOS_EXIT"

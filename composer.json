@@ -1,0 +1,15 @@
+{
+	"name": "cytopia/check_drupal",
+	"description": "This nagios plugin will check if your drupal site has issues (security updates, updates[optional], outstanding db updates, other problems).",
+	"type": "library",
+	"keywords": ["nagios", "nagios-plugin", "icinga", "drupal"],
+	"homepage": "https://github.com/cytopia/check_drupal",
+	"license": "MIT",
+	"authors": [
+		{
+			"name" : "Patrick Plocke",
+			"homepage": "https://github.com/cytopia",
+			"role": "Developer"
+		}
+	]
+}

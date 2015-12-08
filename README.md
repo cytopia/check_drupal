@@ -121,6 +121,8 @@ To be implemented (1-2 weeks)
 
 The following examples are run directly from the command line. The exit code will always be aggregated, meaning if the program throws a warning and an error, the final exit code will result in an error.
 
+Also to note: The first line until the `|` represents the actual nagios output. Everything in the first line behind the `|` is performance data used to generate the cool charts. Everything from line two onwards is nagios extended status info (when you click on details).
+
 ### 3.1 Check for security updates
 ```bash
 ./check_drupal -d /shared/httpd/sites-drupal/COOL-PROJECT/drupal/ -n COOL-PROJECT -s e

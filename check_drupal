@@ -429,10 +429,10 @@ version() {
 check() {
 	if command -v drush > /dev/null 2>&1; then
 		echo "[OK] drush found"
-		return $NAGIOS_ERROR
+		return "$NAGIOS_ERROR"
 	else
 		echo "[ERR] drush not found"
-		return $NAGIOS_OK
+		return "$NAGIOS_OK"
 	fi
 }
 

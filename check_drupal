@@ -3,12 +3,7 @@
 # Nagios plugin to monitor the state of drupal sites.
 #
 
-
-#
 # TODO: optional via logfilea
-# TODO: drush updatedb-status
-#
-#
 
 
 ################################################################################
@@ -18,6 +13,7 @@
 ################################################################################
 
 # Some creds
+INFO_NAME="check_drupal"
 INFO_AUTHOR="Patrick Plocke <patrick@plocke.de>"
 INFO_GPGKEY="0x28BF179F"
 INFO_DATE="2015-12-07"
@@ -182,7 +178,9 @@ is_drupal_root() {
 	fi
 
 	# Test for drupal constant
-	if ! grep 'DRUPAL_ROOT' "${1}/index.php" 1>/dev/null; then
+	# Drupal7:   'DRUPAL_ROOT'
+	# Drupal6+7: 'DRUPAL_BOOTSTRAP_FULL'
+	if ! grep 'DRUPAL_BOOTSTRAP_FULL' "${1}/index.php" 1>/dev/null; then
 		return 1
 	fi
 	return 0
@@ -193,53 +191,6 @@ is_drupal_root() {
 # Drush check functions
 ############################################################
 
-_ALL_UPDATES=""
-_ALL_UPDATES_CHECKED=0
-_ALL_UPDATES_RETURN=0
-
-_get_all_updates() {
-
-	# If we have already checked it, return it
-	# (check_update and check_security_update will both check it.)
-	if [ "${_ALL_UPDATES_CHECKED}" -eq 1 ]; then
-		echo "${_ALL_UPDATES}"
-		return "${_ALL_UPDATES_RETURN}"
-	fi
-
-	# Mark as checked
-	_ALL_UPDATES_CHECKED=1
-
-	_drupal_root="${1}"
-
-	# go to drupal root dir if it exists,
-	# otherwise return
-	cd "${_drupal_root}"
-	if [ $? -ne 0 ]; then
-		_ALL_UPDATES_RETURN="$EXIT_UNKNOWN"
-		return $EXIT_UNKNOWN
-	fi
-	# read comma separated security updates
-	_sec_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} pm-updatestatus --nocolor --format=csv --fields='name,installed version,proposed version,message' 2> /dev/null)"
-
-	# Error might have multiple causes...
-	# Drupal database not connected?
-	# Drupal root wrong?
-	if [ $? -ne 0 ]; then
-		_ALL_UPDATES_CHECKED=1
-		_ALL_UPDATES_RETURN="$EXIT_UNKNOWN"
-		return $EXIT_UNKNOWN
-	fi
-
-
-	_ALL_UPDATES_CHECKED=1
-	_ALL_UPDATES="${_sec_updates}"
-
-	# tango out
-	echo "${_ALL_UPDATES}"
-	return $EXIT_OK
-}
-
-
 # Check if security updates are required.
 # @param  string  Path to Drupal root.
 # @output string  Drupal Security Updates.
@@ -248,8 +199,45 @@ check_security_updates() {
 
 	_drupal_root="${1}"
 
-	# Get all updates (cached if we have done it before)
-	_sec_updates="$(_get_all_updates "${_drupal_root}")"
+	# go to drupal root dir if it exists,
+	# otherwise return
+	cd "${_drupal_root}" || return $NAGIOS_WARNING
+
+	_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} pm-updatestatus --nocolor --security-only --format=csv --fields='name,installed version,proposed version,message' 2> /dev/null)"
+
+	# Error might have multiple causes...
+	# Drupal database not connected?
+	# Drupal root wrong?
+	if [ $? -ne 0 ]; then
+		return $EXIT_UNKNOWN
+	fi
+
+	if [ "${_updates}" != "" ]; then
+		# Format security updates
+		# "<name> <ver> -> <ver>"
+		_updates="$(echo "${_updates}" | awk 'BEGIN {FS=","} ; { print $1" "$2" -> "$3 }')"
+
+		# tango out
+		echo "${_updates}"
+		return $EXIT_ERR
+	fi
+	return $EXIT_OK
+}
+
+# Check if normal system updates are required.
+# @param  string  Path to Drupal root.
+# @output string  Drupal System Updates.
+# @return integer Nagios exit code.
+check_system_updates() {
+
+	_drupal_root="${1}"
+
+	# go to drupal root dir if it exists,
+	# otherwise return
+	cd "${_drupal_root}" || return $NAGIOS_WARNING
+
+	# read comma separated security updates
+	_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} pm-updatestatus --nocolor --format=csv --fields='name,installed version,proposed version,message' 2> /dev/null)"
 
 	# Error might have multiple causes...
 	# Drupal database not connected?
@@ -259,52 +247,16 @@ check_security_updates() {
 	fi
 
 	# Remove normal updates and only keep security updates
-	_sec_updates="$(echo "${_sec_updates}" | grep 'SECURITY UPDATE')"
+	_updates="$(echo "${_updates}" | grep -v 'SECURITY UPDATE')"
 
 
-	if [ "${_sec_updates}" != "" ]; then
+	if [ "${_updates}" != "" ]; then
 		# Format security updates
 		# "<name> <ver> -> <ver>"
-		_sec_updates="$(echo "${_sec_updates}" | awk 'BEGIN {FS=","} ; { print $1" "$2" -> "$3 }')"
-
-		# Prepend text
-		_sec_updates="$(prepend_line "${_sec_updates}" "[sec update] ")"
+		_updates="$(echo "${_updates}" | awk 'BEGIN {FS=","} ; { print $1" "$2" -> "$3 }')"
 
 		# tango out
-		echo "${_sec_updates}"
-		return $EXIT_ERR
-	fi
-	return $EXIT_OK
-}
-
-check_updates() {
-
-	_drupal_root="${1}"
-
-	# Get all updates (cached if we have done it before)
-	_sec_updates="$(_get_all_updates "${_drupal_root}")"
-
-	# Error might have multiple causes...
-	# Drupal database not connected?
-	# Drupal root wrong?
-	if [ $? -ne 0 ]; then
-		return $EXIT_UNKNOWN
-	fi
-
-	# Remove security updates and only keep normal updates
-	_sec_updates="$(echo "${_sec_updates}" | grep -v 'SECURITY UPDATE')"
-
-
-	if [ "${_sec_updates}" != "" ]; then
-		# Format security updates
-		# "<name> <ver> -> <ver>"
-		_sec_updates="$(echo "${_sec_updates}" | awk 'BEGIN {FS=","} ; { print $1" "$2" -> "$3 }')"
-
-		# Prepend text
-		_sec_updates="$(prepend_line "${_sec_updates}" "[update] ")"
-
-		# tango out
-		echo "${_sec_updates}"
+		echo "${_updates}"
 		return $EXIT_ERR
 	fi
 	return $EXIT_OK
@@ -343,8 +295,7 @@ check_core_errors() {
 		# Remove leading 'error'
 		_core_errors="$(echo "${_core_errors}" | awk '{for (i=2; i<NF; i++) printf $i " "; print $NF}')"
 
-		# Prepend text
-		_core_errors="$(prepend_line "${_core_errors}" "[core error] ")"
+		# Tango out
 		echo "${_core_errors}"
 		return $EXIT_ERR
 	fi
@@ -374,7 +325,6 @@ check_core_warnings() {
 		return $EXIT_UNKNOWN
 	fi
 
-
 	# Only keep "Warnung", "Warning", ... TODO: Other languages or make it outut always in english
 	# But how???
 	_core_warnings="$(echo "${_core_warnings}" | grep -E 'Warning|Warnung')"
@@ -390,8 +340,7 @@ check_core_warnings() {
 		# Remove leading 'error'
 		_core_warnings="$(echo "${_core_warnings}" | awk '{for (i=2; i<NF; i++) printf $i " "; print $NF}')"
 
-		# Prepend text
-		_core_warnings="$(prepend_line "${_core_warnings}" "[core warning] ")"
+		# Tango out
 		echo "${_core_warnings}"
 		return $EXIT_ERR
 	fi
@@ -404,8 +353,37 @@ check_core_warnings() {
 # @output string  Required db updates.
 # @return integer Nagios exit code.
 check_db_updates() {
-	# TODO: implement
-	return 0
+
+	_drupal_root="${1}"
+
+	# go to drupal root dir if it exists,
+	# otherwise return
+	cd "${_drupal_root}" || return $NAGIOS_WARNING
+
+	# read comma separated security updates
+	_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} pm-updatestatus --nocolor --no-field-labels --format=csv --fields='module,update_id' 2> /dev/null)"
+
+	# Error might have multiple causes...
+	# Drupal database not connected?
+	# Drupal root wrong?
+	if [ $? -ne 0 ]; then
+		return $EXIT_UNKNOWN
+	fi
+
+	# Remove normal updates and only keep security updates
+	_updates="$(echo "${_updates}" | grep -v 'SECURITY UPDATE')"
+
+
+	if [ "${_updates}" != "" ]; then
+		# Format security updates
+		# "<name> <ver> -> <ver>"
+		_updates="$(echo "${_updates}" | awk 'BEGIN {FS=","} ; { print $1" "$2" -> "$3 }')"
+
+		# tango out
+		echo "${_updates}"
+		return $EXIT_ERR
+	fi
+	return $EXIT_OK
 }
 
 
@@ -416,7 +394,8 @@ check_db_updates() {
 # Give some creds
 # @output string  The creds.
 # @return integer 0
-version() {
+print_version() {
+	printf "Name:    %s\n" "${INFO_NAME}"
 	printf "Version: %s (%s)\n" "${INFO_VERSION}" "${INFO_DATE}"
 	printf "Author:  %s (%s)\n" "${INFO_AUTHOR}" "${INFO_GPGKEY}"
 	printf "License: %s\n" "${INFO_LICENSE}"
@@ -440,10 +419,10 @@ check() {
 # @output string  The usage screen.
 # @return integer 0
 print_usage() {
-	printf "Usage: %s -d <drupal root> [-n <name>] [-s <w|e>] [-u <w|e>] [-e <w|e>] [-w <w|e>] [-m <w|e>] [-l <log file>]\n" "$(basename "$0")"
-	printf "OR     %s --check\n" "$(basename "$0")"
-	printf "OR     %s --help\n" "$(basename "$0")"
-	printf "OR     %s --version\n\n" "$(basename "$0")"
+	printf "Usage: %s -d <drupal root> [-n <name>] [-s <w|e>] [-u <w|e>] [-e <w|e>] [-w <w|e>] [-m <w|e>] [-l <log file>]\n" "${INFO_NAME}"
+	printf "OR     %s --check\n" "${INFO_NAME}"
+	printf "OR     %s --help\n" "${INFO_NAME}"
+	printf "OR     %s --version\n\n" "${INFO_NAME}"
 	return 0
 }
 
@@ -591,14 +570,14 @@ fi
 
 # Extended Status Message
 MSG_SECURITY_UPDATE=""
-MSG_UPDATE=""
+MSG_SYSTEM_UPDATE=""
 MSG_CORE_ERROR=""
 MSG_CORE_WARNING=""
 MSG_DB_UPDATE=""
 
 # Info for normal Status message if there is an error/warning
 HAS_SECURITY_UPDATE_ERROR=""
-HAS_UPDATE_ERROR=""
+HAS_SYSTEM_UPDATE_ERROR=""
 HAS_CORE_ERR_ERROR=""
 HAS_CORE_WARN_ERROR=""
 HAS_DB_UPDATE_ERROR=""
@@ -664,17 +643,19 @@ while test -n "$1"; do
 			if [ "$TMP_EXIT" != "0" ]; then
 				if [ "$SEVERITY" = "e" ]; then
 					CNT_ERROR=$((CNT_ERROR+1))
-					MSG_SECURITY_UPDATE="[CRITICAL]\n${MSG_SECURITY_UPDATE}"
+					MSG_SECURITY_UPDATE="$(prepend_line "${MSG_SECURITY_UPDATE}" "[CRITICAL] ")"
+					MSG_SECURITY_UPDATE="==== SECURITY UPDATES ====\n${MSG_SECURITY_UPDATE}"
 					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
 				else
 					CNT_WARNING=$((CNT_WARNING+1))
-					MSG_SECURITY_UPDATE="[WARNING]\n${MSG_SECURITY_UPDATE}"
+					MSG_SECURITY_UPDATE="$(prepend_line "${MSG_SECURITY_UPDATE}" "[WARNING] ")"
+					MSG_SECURITY_UPDATE="==== SECURITY UPDATES ====\n${MSG_SECURITY_UPDATE}"
 					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
 				fi
 				HAS_SECURITY_UPDATE_ERROR="true"
 			else
 				CNT_OK=$((CNT_OK+1))
-				MSG_SECURITY_UPDATE="[OK]\n${MSG_SECURITY_UPDATE}"
+				MSG_SECURITY_UPDATE="==== SECURITY UPDATES ====\n[OK] No Security updates required"
 				NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
 			fi
 			CNT_ALL=$((CNT_ALL+1))
@@ -694,24 +675,26 @@ while test -n "$1"; do
 			fi
 
 			# Execute Command
-			MSG_UPDATE="$(check_updates "${DRUPAL_ROOT}")"
+			MSG_SYSTEM_UPDATE="$(check_system_updates "${DRUPAL_ROOT}")"
 			TMP_EXIT="$?"
 
 			# Merge exit codes
 			if [ "$TMP_EXIT" != "0" ]; then
 				if [ "$SEVERITY" = "e" ]; then
 					CNT_ERROR=$((CNT_ERROR+1))
-					MSG_UPDATE="[CRITICAL]\n${MSG_UPDATE}"
+					MSG_SYSTEM_UPDATE="$(prepend_line "${MSG_SYSTEM_UPDATE}" "[CRITICAL] ")"
+					MSG_SYSTEM_UPDATE="==== SYSTEM UPDATES ====\n${MSG_SYSTEM_UPDATE}"
 					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
 				else
 					CNT_WARNING=$((CNT_WARNING+1))
-					MSG_UPDATE="[WARNING]\n${MSG_UPDATE}"
+					MSG_SYSTEM_UPDATE="$(prepend_line "${MSG_SYSTEM_UPDATE}" "[WARNING] ")"
+					MSG_SYSTEM_UPDATE="==== SYSTEM UPDATES ====\n${MSG_SYSTEM_UPDATE}"
 					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
 				fi
-				HAS_UPDATE_ERROR="true"
+				HAS_SYSTEM_UPDATE_ERROR="true"
 			else
 				CNT_OK=$((CNT_OK+1))
-				MSG_UPDATE="[OK]\n${MSG_UPDATE}"
+				MSG_SYSTEM_UPDATE="==== SYSTEM UPDATES ====\n[OK]\nNo Updates required"
 				NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
 			fi
 			CNT_ALL=$((CNT_ALL+1))
@@ -738,17 +721,19 @@ while test -n "$1"; do
 			if [ "$TMP_EXIT" != "0" ]; then
 				if [ "$SEVERITY" = "e" ]; then
 					CNT_ERROR=$((CNT_ERROR+1))
-					MSG_CORE_ERROR="[CRITICAL]\n${MSG_CORE_ERROR}"
+					MSG_CORE_ERROR="$(prepend_line "${MSG_CORE_ERROR}" "[CRITICAL] ")"
+					MSG_CORE_ERROR="==== CORE ERRORS ====\n${MSG_CORE_ERROR}"
 					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
 				else
 					CNT_WARNING=$((CNT_WARNING+1))
-					MSG_CORE_ERROR="[WARNING]\n${MSG_CORE_ERROR}"
+					MSG_CORE_ERROR="$(prepend_line "${MSG_CORE_ERROR}" "[WARNING] ")"
+					MSG_CORE_ERROR="==== CORE ERRORS ====\n${MSG_CORE_ERROR}"
 					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
 				fi
 				HAS_CORE_ERR_ERROR="true"
 			else
 				CNT_OK=$((CNT_OK+1))
-				MSG_CORE_ERROR="[OK]\n${MSG_CORE_ERROR}"
+				MSG_CORE_ERROR="==== CORE ERRORS ====\n[OK] No core errors"
 				NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
 			fi
 			CNT_ALL=$((CNT_ALL+1))
@@ -775,17 +760,19 @@ while test -n "$1"; do
 			if [ "$TMP_EXIT" != "0" ]; then
 				if [ "$SEVERITY" = "e" ]; then
 					CNT_ERROR=$((CNT_ERROR+1))
-					MSG_CORE_WARNING="[CRITICAL]\n${MSG_CORE_WARNING}"
+					MSG_CORE_WARNING="$(prepend_line "${MSG_CORE_WARNING}" "[CRITICAL] ")"
+					MSG_CORE_WARNING="==== CORE WARNINGS ====\n${MSG_CORE_WARNING}"
 					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
 				else
 					CNT_WARNING=$((CNT_WARNING+1))
-					MSG_CORE_WARNING="[WARNING]\n${MSG_CORE_WARNING}"
+					MSG_CORE_WARNING="$(prepend_line "${MSG_CORE_WARNING}" "[WARNING] ")"
+					MSG_CORE_WARNING="==== CORE WARNINGS ====\n${MSG_CORE_WARNING}"
 					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
 				fi
 				HAS_CORE_WARN_ERROR="true"
 			else
 				CNT_OK=$((CNT_OK+1))
-				MSG_CORE_WARNING="[OK]\n${MSG_CORE_WARNING}"
+				MSG_CORE_WARNING="==== CORE WARNINGS ====\n[OK] No core warnings"
 				NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
 			fi
 			CNT_ALL=$((CNT_ALL+1))
@@ -813,17 +800,19 @@ while test -n "$1"; do
 			if [ "$TMP_EXIT" != "0" ]; then
 				if [ "$SEVERITY" = "e" ]; then
 					CNT_ERROR=$((CNT_ERROR+1))
-					MSG_DB_UPDATE="[CRITICAL]\n${MSG_DB_UPDATE}"
+					MSG_DB_UPDATE="$(prepend_line "${MSG_DB_UPDATES}" "[CRITICAL] ")"
+					MSG_DB_UPDATE="==== DB UPDATES ====\n${MSG_DB_UPDATES}"
 					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
 				else
 					CNT_WARNING=$((CNT_WARNING+1))
-					MSG_DB_UPDATE="[WARNING]\n${MSG_DB_UPDATE}"
+					MSG_DB_UPDATE="$(prepend_line "${MSG_DB_UPDATES}" "[WARNING] ")"
+					MSG_DB_UPDATE="==== DB UPDATES ====\n${MSG_DB_UPDATES}"
 					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
 				fi
 				HAS_DB_UPDATE_ERROR="true"
 			else
 				CNT_OK=$((CNT_OK+1))
-				MSG_DB_UPDATE="[OK]\n${MSG_DB_UPDATE}"
+				MSG_DB_UPDATE="==== DB UPDATES ====\n[OK] No database updates required"
 				NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
 			fi
 			CNT_ALL=$((CNT_ALL+1))
@@ -834,6 +823,9 @@ while test -n "$1"; do
 		-l)
 			# Get next arg in list (Exit code)
 			shift
+
+			echo "-l is not yet implemented"
+			exit $EXIT_UNKNOWN
 			# TODO: uncomment
 			#LOG_TO_FILE="$1"
 			;;
@@ -859,7 +851,7 @@ INFO=""
 if [ "$HAS_SECURITY_UPDATE_ERROR" != "" ]; then
 	INFO="$(merge_text "${INFO}" "Security update(s)" ", ")"
 fi
-if [ "$HAS_UPDATE_ERROR" != "" ]; then
+if [ "$HAS_SYSTEM_UPDATE_ERROR" != "" ]; then
 	INFO="$(merge_text "${INFO}" "Update(s)" ", ")"
 fi
 if [ "$HAS_CORE_ERR_ERROR" != "" ]; then
@@ -891,9 +883,10 @@ fi
 ### Extended status data
 
 if [ "$MSG_SECURITY_UPDATE" != "" ]; then echo "$MSG_SECURITY_UPDATE"; fi
-if [ "$MSG_UPDATE"          != "" ]; then echo "$MSG_UPDATE";          fi
+if [ "$MSG_SYSTEM_UPDATE"   != "" ]; then echo "$MSG_SYSTEM_UPDATE";   fi
 if [ "$MSG_CORE_ERROR"      != "" ]; then echo "$MSG_CORE_ERROR";      fi
 if [ "$MSG_CORE_WARNING"    != "" ]; then echo "$MSG_CORE_WARNING";    fi
 if [ "$MSG_DB_UPDATE"       != "" ]; then echo "$MSG_DB_UPDATE";       fi
 
 exit "$NAGIOS_EXIT"
+

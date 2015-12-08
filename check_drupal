@@ -201,7 +201,7 @@ check_security_updates() {
 
 	# go to drupal root dir if it exists,
 	# otherwise return
-	cd "${_drupal_root}" || return "$NAGIOS_UNKNOWN"
+	cd "${_drupal_root}" || return "$EXIT_UNKNOWN"
 
 	_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} pm-updatestatus --nocolor --security-only --format=csv --fields='name,installed version,proposed version,message' 2> /dev/null)"
 
@@ -234,7 +234,7 @@ check_system_updates() {
 
 	# go to drupal root dir if it exists,
 	# otherwise return
-	cd "${_drupal_root}" || return "$NAGIOS_UNKNOWN"
+	cd "${_drupal_root}" || return "$EXIT_UNKNOWN"
 
 	# read comma separated security updates
 	_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} pm-updatestatus --nocolor --format=csv --fields='name,installed version,proposed version,message' 2> /dev/null)"
@@ -358,7 +358,7 @@ check_db_updates() {
 
 	# go to drupal root dir if it exists,
 	# otherwise return
-	cd "${_drupal_root}" || return "$NAGIOS_UNKNOWN"
+	cd "${_drupal_root}" || return "$EXIT_UNKNOWN"
 
 	# read comma separated security updates
 	_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} pm-updatestatus --nocolor --no-field-labels --format=csv --fields='module,update_id' 2> /dev/null)"
@@ -408,10 +408,10 @@ print_version() {
 check() {
 	if command -v drush > /dev/null 2>&1; then
 		echo "[OK] drush found"
-		return "$NAGIOS_ERROR"
+		return "$EXIT_ERR"
 	else
 		echo "[ERR] drush not found"
-		return "$NAGIOS_OK"
+		return "$EXIT_OK"
 	fi
 }
 

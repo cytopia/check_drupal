@@ -98,7 +98,6 @@ For each check you can specify the nagios severity (error or warning).
 ### 1.2 `check_drupal_log`
 
 ```bash
-check_drupal_log  --help
 Usage: check_drupal_log -f <logfile>
 OR     check_drupal_log --help
 OR     check_drupal_log --version

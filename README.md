@@ -116,7 +116,7 @@ The following examples are run directly from the command line. The exit code wil
 
 Also to note: The first line until the `|` represents the actual nagios output. Everything in the first line behind the `|` is performance data used to generate the cool charts. Everything from line two onwards is nagios extended status info (when you click on details).
 
-### 2.1 Check for security updates
+**Check for security updates**
 ```bash
 ./check_drupal -d /shared/httpd/sites-drupal/COOL-PROJECT/drupal/ -n COOL-PROJECT -s e
 [ERROR] COOL-PROJECT has errors: Security update(s) | 'OK'=0;;;0;1 'Errors'=1;1;1;0;1 'Warnings'=0;1;;0;1 'Unknown'=0;;;0;1
@@ -124,7 +124,8 @@ Also to note: The first line until the `|` represents the actual nagios output. 
 [CRITICAL] drupal 7.40 -> 7.41
 [CRITICAL] jquery_update 7.x-2.6 -> 7.x-2.7
 ```
-### 2.2 Check for security and normal updates
+
+**Check for security and normal updates**
 ```bash
 ./check_drupal -d /shared/httpd/sites-drupal/COOL-PROJECT/drupal/ -n COOL-PROJECT -s e -u w
 [ERROR] COOL-PROJECT has errors: Security update(s), Update(s) | 'OK'=0;;;0;2 'Errors'=1;1;1;0;2 'Warnings'=1;1;;0;2 'Unknown'=0;;;0;2
@@ -137,7 +138,7 @@ Also to note: The first line until the `|` represents the actual nagios output. 
 [WARNING] bootstrap 7.x-3.0 -> 7.x-3.1
 ```
 
-### 2.3 Check for all possible stuff
+**Check for all possible stuff**
 ```bash
 ./check_drupal -d /shared/httpd/sites-drupal/COOL-PROJECT/drupal/ -n COOL-PROJECT -s e -u w -e e -w w -m e
 [ERROR] COOL-PROJECT has errors: Security update(s), Update(s), Core error(s), Core warning(s) | 'OK'=1;;;0;5 'Errors'=2;1;1;0;5 'Warnings'=2;1;;0;5 'Unknown'=0;;;0;5
@@ -159,7 +160,7 @@ Also to note: The first line until the `|` represents the actual nagios output. 
 ==== DB UPDATES ====
 [OK] No database updates required
 ```
-### 2.4 Check for db updates
+**Check for db updates**
 ```bash
 ./check_drupal -d /shared/httpd/sites-drupal/COOL-PROJECT/drupal/ -n COOL-PROJECT -m e
 [OK] COOL-PROJECT is healthy | 'OK'=1;;;0;1 'Errors'=0;1;1;0;1 'Warnings'=0;1;;0;1 'Unknown'=0;;;0;1

@@ -26,26 +26,10 @@ Nagios drupal plugin to monitor the state of a drupal site via ssh, http or loca
 * Basic performance data fow: how many OKs, Errors, Warnings and Unknowns
 
 
-## 1. Nagios Configuration
-### Command definition
-In order to check drupal sites on remote servers you will need to make use of `check_by_ssh`.
-```bash
-name:    check_by_ssh_drupal
-command: $USER1$/check_by_ssh -H $HOSTADDRESS$ -t 60 -l "$USER17$" -C "$USER22$/check_drupal -d $ARG1$ -n $ARG2$ $ARG3$"
-```
-### Service definition
-In the above command definition there are two fixed arguments for the document root and the project name as well as one loose argument place holder that can hold all checks you want to run. The following shows one example service definition for one specific drupal site:
-```bash
-check command: ssh_drupal_cool-drupal-project
-$ARG1$:        /var/www/cool-drupal-project/drupal/
-$ARG2$:        Cool Drupal Project
-$ARG3$:        -s e -u w -e e -w w -m e
-```
-The above service defintion will check against security updates (with nagios error), against normal updates (with nagios warning), against core errors (with nagios error), against core warnings (with nagios warning) and finally against missed database updates (with nagios error).
 
-## 2. Usage
+## 1. Usage
 
-### 2.1 `check_drupal`
+### 1.1 `check_drupal`
 
 **Note:** Currently the `-l` option is not yet implemented, but will so in a few days/weeks.  
 With `-l` you will be able to run the `check_drupal` locally on each machine only a few times a day and dump the output to a logfile.
@@ -112,10 +96,21 @@ For each check you can specify the nagios severity (error or warning).
   --version              Show version information.
 ```
 
-### 2.2 `check_drupal_log`
+### 1.2 `check_drupal_log`
 
-To be implemented (1-2 weeks)
+```bash
+check_drupal_log  --help
+Usage: check_drupal_log -f <logfile>
+OR     check_drupal_log --help
+OR     check_drupal_log --version
 
+Nagios plugin that will parse the logfile created by 'check_drupal'.
+
+  -f <logfile>           The full path to logfile created by 'check_drupal'
+
+  --help                 Show this help
+  --version              Show version information.
+```
 
 ## 3. Examples
 
@@ -173,6 +168,43 @@ Also to note: The first line until the `|` represents the actual nagios output. 
 ==== DB UPDATES ====
 [OK] No database updates required
 ```
+
+## 1. Nagios Configuration
+
+### 3.1 check_drupal
+
+#### Command definition
+In order to check drupal sites on remote servers you will need to make use of `check_by_ssh`.
+```bash
+name:    check_by_ssh_drupal
+command: $USER1$/check_by_ssh -H $HOSTADDRESS$ -t 60 -l "$USER17$" -C "$USER22$/check_drupal -d $ARG1$ -n $ARG2$ $ARG3$"
+```
+#### Service definition
+In the above command definition there are two fixed arguments for the document root and the project name as well as one loose argument place holder that can hold all checks you want to run. The following shows one example service definition for one specific drupal site:
+```bash
+check command: ssh_drupal_cool-drupal-project
+$ARG1$:        /var/www/cool-drupal-project/drupal/
+$ARG2$:        Cool Drupal Project
+$ARG3$:        -s e -u w -e e -w w -m e
+```
+The above service defintion will check against security updates (with nagios error), against normal updates (with nagios warning), against core errors (with nagios error), against core warnings (with nagios warning) and finally against missed database updates (with nagios error).
+
+### 3.2 check_drupal_log
+
+#### Command definition
+In order to check drupal sites on remote servers you will need to make use of `check_by_ssh`.
+```bash
+name:    check_by_ssh_drupal
+command: $USER1$/check_by_ssh -H $HOSTADDRESS$ -t 60 -l "$USER17$" -C "$USER22$/check_drupal_log -f $ARG1$"
+```
+#### Service definition
+In the above command definition there is only one arguments. This will point to the logfile created by `check_drupal`:
+```bash
+check command: ssh_drupal_cool-drupal-project
+$ARG1$:        /var/log/drupal_cool-project.log
+```
+
+
 
 
 ## 4. License

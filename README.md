@@ -212,6 +212,15 @@ check command: ssh_drupal_cool-drupal-project
 $ARG1$:        /var/log/drupal_cool-project.log
 ```
 
+#### Cron setup
+For this recommended setup to work you need to setup a cronjob on the target machine (where the drupal site is installed) that is run every 6 hours, every day or whatever you want.
+
+Setup multiple cronjobs with multiple logfiles if you have multiple drupal sites on this machine that you want to monitor.
+
+```cron
+0 */6 * * * /path/to/check_drupal -d /var/www/cool-drupal-project/drupal/ -n "Cool Project" -s e -u w -e e -w w -m e -l /var/log/drupal_cool-project.log
+```
+
 
 
 

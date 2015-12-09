@@ -1,0 +1,176 @@
+#!/bin/sh
+#
+# Nagios plugin to monitor the state of drupal sites.
+#
+
+################################################################################
+#
+# V A R I A B L E S
+#
+################################################################################
+
+# Some creds
+INFO_NAME="check_drupal_log"
+INFO_AUTHOR="Patrick Plocke <patrick@plocke.de>"
+INFO_GPGKEY="0x28BF179F"
+INFO_DATE="2015-12-09"
+INFO_LICENSE="MIT"
+INFO_VERSION="0.1"
+
+# Get the path
+export PATH="$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+
+# Nagios error codes
+EXIT_OK=0
+EXIT_WARN=1
+EXIT_ERR=2
+EXIT_UNKNOWN=3
+
+
+
+################################################################################
+#
+# F U N C T I O N S
+#
+################################################################################
+
+# Test if argument is an integer
+# @return integer	0: is numer | 1 not a number
+#
+# usage:
+#	if ! isint ${DELETE_IF_OLDER} > /dev/null 2>&1 ; then
+#		echo "not an integer"
+#	fi
+isint(){
+	printf '%d' "$1" >/dev/null 2>&1 && return 0 || return 1;
+}
+
+# Give some creds
+# @output string  The creds.
+# @return integer 0
+print_version() {
+	printf "Name:    %s\n" "${INFO_NAME}"
+	printf "Version: %s (%s)\n" "${INFO_VERSION}" "${INFO_DATE}"
+	printf "Author:  %s (%s)\n" "${INFO_AUTHOR}" "${INFO_GPGKEY}"
+	printf "License: %s\n" "${INFO_LICENSE}"
+	return 0
+}
+
+
+# Usage
+# @output string  The usage screen.
+# @return integer 0
+print_usage() {
+	printf "Usage: %s -f <logfile>\n" "${INFO_NAME}"
+	printf "OR     %s --help\n" "${INFO_NAME}"
+	printf "OR     %s --version\n\n" "${INFO_NAME}"
+	return 0
+}
+
+# Help
+# @output string  The help screen.
+# @return integer 0
+print_help() {
+
+	# Show usage first
+	print_usage
+
+	# Show help and details
+	printf "Nagios plugin that will parse the logfile created by 'check_drupal'.\n\n"
+
+	printf "  -f <logfile>           The full path to logfile created by 'check_drupal'\n\n"
+
+	printf "  --help                 Show this help\n"
+	printf "  --version              Show version information.\n"
+	return 0
+}
+
+
+
+################################################################################
+#
+# E N T R Y   P O I N T
+#
+################################################################################
+
+############################################################
+# Check for --help or --version arguments
+############################################################
+if [ "${1}" = "--help" ]; then
+	print_help
+	exit $EXIT_OK
+fi
+if [ "${1}" = "--version" ]; then
+	print_version
+	exit $EXIT_OK
+fi
+
+
+############################################################
+# Retrieve arguments
+############################################################
+while test -n "$1"; do
+	case "$1" in
+		# ---- 1. Logfile
+		-f)
+			# Get next arg in list (Path)
+			shift
+			LOGFILE="$1"
+			;;
+		*)
+			printf "Unknown argument: %s\n" "$1"
+			print_usage
+			exit $EXIT_UNKNOWN
+			;;
+	esac
+	shift
+done
+
+
+############################################################
+# Validate arguments
+############################################################
+
+# -f is mandatory!!!
+if [ -z "$LOGFILE" ]; then
+	printf "[UNKNOWN] Logfile parameter '-f' not specified.\n"
+	print_usage
+	exit $EXIT_UNKNOWN
+fi
+
+# Check if logfile exists
+if [ ! -f "$LOGFILE" ]; then
+	echo "[UNKNOWN] Logfile does not exist: ${LOGFILE}."
+	exit $EXIT_UNKNOWN
+fi
+
+# Check if logfile is readable
+if [ ! -r "$LOGFILE" ]; then
+	echo "[UNKNOWN] Logfile is not readable: ${LOGFILE}."
+	exit $EXIT_UNKNOWN
+fi
+
+# Check if last line contains error code
+NAGIOS_EXIT="$(tail -n1 "$LOGFILE")"
+if ! isint ${NAGIOS_EXIT} > /dev/null 2>&1 ; then
+	echo "[UNKNOWN] Logfile seems invalid: Does not contain exit code on last line."
+	exit $EXIT_UNKNOWN
+fi
+
+# Check if exit code is within bounds
+if [ "$NAGIOS_EXIT" != "0" ] && [ "$NAGIOS_EXIT" != "1" ] && [ "$NAGIOS_EXIT" != "2" ]  && [ "$NAGIOS_EXIT" != "3" ]; then
+	echo "[UNKNOWN] Exit code not within bounds in $LOGFILE"
+	exit $EXIT_UNKNOWN
+fi
+
+
+
+NUM_LINES="$(wc -l < "$LOGFILE")"
+NUM_LINES="$((NUM_LINES-1))" # Last line is exit code
+
+OUTPUT="$(head -n${NUM_LINES} "$LOGFILE")"
+
+echo "$OUTPUT"
+exit $NAGIOS_EXIT
+# " vim: set ts=4:
+

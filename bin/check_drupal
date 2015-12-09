@@ -3,9 +3,6 @@
 # Nagios plugin to monitor the state of drupal sites.
 #
 
-# TODO: optional via logfilea
-
-
 ################################################################################
 #
 # V A R I A B L E S
@@ -16,9 +13,9 @@
 INFO_NAME="check_drupal"
 INFO_AUTHOR="Patrick Plocke <patrick@plocke.de>"
 INFO_GPGKEY="0x28BF179F"
-INFO_DATE="2015-12-07"
+INFO_DATE="2015-12-09"
 INFO_LICENSE="MIT"
-INFO_VERSION="0.1"
+INFO_VERSION="0.2"
 
 # Get the path
 export PATH="$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
@@ -73,6 +70,27 @@ trim_lines() {
 	_str="${1}"
 	echo "${_str}" | grep -v '^$'
 }
+
+# Check for a valid severity and return the
+# appropriate nagios exit code
+# Allowed values: 'w' or 'e'
+# @param  string  The severity.
+# @output integer Nagios exit code
+# return  integer 0: OK, 1: Wrong
+get_severity() {
+	_code="${1}"
+
+	if [ "${_code}" = "e" ]; then
+		echo "$EXIT_ERR"
+		return 0
+	elif [ "${_code}" = "w" ]; then
+		echo "$EXIT_WARN"
+		return 0
+	else
+		return 1
+	fi
+}
+
 
 
 # Aggregate nagios exit code.
@@ -525,48 +543,13 @@ if ! command -v drush > /dev/null 2>&1 ; then
 	exit $EXIT_UNKNOWN
 fi
 
-# Is the drupal document root specified?
-DRUPAL_ROOT=""
-_found=0
-for arg in "$@"; do
-	# Loop while we have not yet found '-d'
-	if [ "${_found}" = "0" ]; then
-
-		# We have found it, the next argument
-		# in the next loop round will be
-		# the directory itself.
-		if [ "${arg}" = "-d" ]; then
-			_found=1
-		fi
-	else
-		# First next loop round after finding '-d'
-		# This must be the drupal root.
-		DRUPAL_ROOT="${arg}"
-
-		# Exit the loop immediately, otherwise we would
-		# keep on overwriting the DRUPAL_ROOT
-		break;
-	fi
-done
-
-# If we haven't found the sucker we need to quit with nagios unknown
-if [ "${_found}" = "0" ]; then
-	printf "[UNKNOWN] Drupal root parameter '-d' not specified.\n"
-	print_usage
-	exit $EXIT_UNKNOWN
-fi
-
-# We are still alive, so let's check if it is a valid drupal doc root
-if ! is_drupal_root "${DRUPAL_ROOT}" > /dev/null 2>&1; then
-	echo "[UNKNOWN] '${DRUPAL_ROOT}' is not a valid drupal root directory."
-	print_usage
-	exit $EXIT_UNKNOWN
-fi
-
 
 ############################################################
 # Internal Variables
 ############################################################
+
+# This will be filled in the the specified arguments.
+DRUPAL_NAME="Drupal"
 
 # Extended Status Message
 MSG_SECURITY_UPDATE=""
@@ -591,243 +574,74 @@ CNT_WARNING=0
 # Final exit code
 NAGIOS_EXIT="${EXIT_OK}"
 
-# If we are going to log to a file
-# the path will be in here
-# TODO:
-#LOG_TO_FILE=""
-
-# Default value
-DRUPAL_NAME="Drupal"
 
 ############################################################
-# Eval arguments
+# Retrieve arguments
 ############################################################
-
 while test -n "$1"; do
 	case "$1" in
-
-		# ---- 0. Drupal root
+		# ---- 1. Drupal root
 		-d)
-			# Already checked, but must be here, otherwise
-			# it will throw an unknown argument.
-
-			# Also shift the next argument, the actual path
-			# to be out of the way
+			# Get next arg in list (Path)
 			shift
-
+			DRUPAL_ROOT="$1"
 			;;
-		# ---- 0. Drupal name
+		# ---- 1. Drupal name
 		-n)
-			# to be out of the way
+			# Get next arg in list (Name)
 			shift
 			DRUPAL_NAME="$1"
 			;;
-
-
-		# ---- 1. Security Updates
+		# ---- 2. Security Updates
 		-s)
-			# Get next arg in list (Exit code)
+			# Get next arg in list (Severity <w|e>)
 			shift
-			SEVERITY="$1"
-
-			# Check valid exit code
-			if [ "$SEVERITY" != "w" ] && [ "$SEVERITY" != "e" ]; then
-				echo "Invalid value \"$SEVERITY\" for option \"-s\"."
+			if ! CHECK_S="$(get_severity "$1")" > /dev/null 2>&1; then
+				echo "Invalid value \"$1\" for option \"-s\"."
 				exit $EXIT_UNKNOWN
 			fi
-			# Execute Command
-			MSG_SECURITY_UPDATE="$(check_security_updates "${DRUPAL_ROOT}")"
-			TMP_EXIT="$?"
-
-			# Merge exit codes
-			if [ "$TMP_EXIT" != "0" ]; then
-				if [ "$SEVERITY" = "e" ]; then
-					CNT_ERROR=$((CNT_ERROR+1))
-					MSG_SECURITY_UPDATE="$(prepend_line "${MSG_SECURITY_UPDATE}" "[CRITICAL] ")"
-					MSG_SECURITY_UPDATE="==== SECURITY UPDATES ====\n${MSG_SECURITY_UPDATE}"
-					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
-				else
-					CNT_WARNING=$((CNT_WARNING+1))
-					MSG_SECURITY_UPDATE="$(prepend_line "${MSG_SECURITY_UPDATE}" "[WARNING] ")"
-					MSG_SECURITY_UPDATE="==== SECURITY UPDATES ====\n${MSG_SECURITY_UPDATE}"
-					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
-				fi
-				HAS_SECURITY_UPDATE_ERROR="true"
-			else
-				CNT_OK=$((CNT_OK+1))
-				MSG_SECURITY_UPDATE="==== SECURITY UPDATES ====\n[OK] No Security updates required"
-				NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
-			fi
-			CNT_ALL=$((CNT_ALL+1))
 			;;
-
-
-		# ---- 2. Any Updates (Not just security)
+		# ---- 3. System Updates
 		-u)
-			# Get next arg in list (Exit code)
+			# Get next arg in list (Severity <w|e>)
 			shift
-			SEVERITY="$1"
-
-			# Check valid exit code
-			if [ "$SEVERITY" != "w" ] && [ "$SEVERITY" != "e" ]; then
-				echo "Invalid value \"$SEVERITY\" for option \"-u\"."
+			if ! CHECK_U="$(get_severity "$1")" > /dev/null 2>&1; then
+				echo "Invalid value \"$1\" for option \"-u\"."
 				exit $EXIT_UNKNOWN
 			fi
-
-			# Execute Command
-			MSG_SYSTEM_UPDATE="$(check_system_updates "${DRUPAL_ROOT}")"
-			TMP_EXIT="$?"
-
-			# Merge exit codes
-			if [ "$TMP_EXIT" != "0" ]; then
-				if [ "$SEVERITY" = "e" ]; then
-					CNT_ERROR=$((CNT_ERROR+1))
-					MSG_SYSTEM_UPDATE="$(prepend_line "${MSG_SYSTEM_UPDATE}" "[CRITICAL] ")"
-					MSG_SYSTEM_UPDATE="==== SYSTEM UPDATES ====\n${MSG_SYSTEM_UPDATE}"
-					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
-				else
-					CNT_WARNING=$((CNT_WARNING+1))
-					MSG_SYSTEM_UPDATE="$(prepend_line "${MSG_SYSTEM_UPDATE}" "[WARNING] ")"
-					MSG_SYSTEM_UPDATE="==== SYSTEM UPDATES ====\n${MSG_SYSTEM_UPDATE}"
-					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
-				fi
-				HAS_SYSTEM_UPDATE_ERROR="true"
-			else
-				CNT_OK=$((CNT_OK+1))
-				MSG_SYSTEM_UPDATE="==== SYSTEM UPDATES ====\n[OK]\nNo Updates required"
-				NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
-			fi
-			CNT_ALL=$((CNT_ALL+1))
 			;;
-
-
-		# ---- 3. Core errors
+		# ---- 5. Core errors
 		-e)
-			# Get next arg in list (Exit code)
+			# Get next arg in list (Severity <w|e>)
 			shift
-			SEVERITY="$1"
-
-			# Check valid exit code
-			if [ "$SEVERITY" != "w" ] && [ "$SEVERITY" != "e" ]; then
-				echo "Invalid value \"$SEVERITY\" for option \"-e\"."
+			if ! CHECK_E="$(get_severity "$1")" > /dev/null 2>&1; then
+				echo "Invalid value \"$1\" for option \"-e\"."
 				exit $EXIT_UNKNOWN
 			fi
-
-			# Execute Command
-			MSG_CORE_ERROR="$(check_core_errors "${DRUPAL_ROOT}")"
-			TMP_EXIT="$?"
-
-			# Merge exit codes
-			if [ "$TMP_EXIT" != "0" ]; then
-				if [ "$SEVERITY" = "e" ]; then
-					CNT_ERROR=$((CNT_ERROR+1))
-					MSG_CORE_ERROR="$(prepend_line "${MSG_CORE_ERROR}" "[CRITICAL] ")"
-					MSG_CORE_ERROR="==== CORE ERRORS ====\n${MSG_CORE_ERROR}"
-					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
-				else
-					CNT_WARNING=$((CNT_WARNING+1))
-					MSG_CORE_ERROR="$(prepend_line "${MSG_CORE_ERROR}" "[WARNING] ")"
-					MSG_CORE_ERROR="==== CORE ERRORS ====\n${MSG_CORE_ERROR}"
-					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
-				fi
-				HAS_CORE_ERR_ERROR="true"
-			else
-				CNT_OK=$((CNT_OK+1))
-				MSG_CORE_ERROR="==== CORE ERRORS ====\n[OK] No core errors"
-				NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
-			fi
-			CNT_ALL=$((CNT_ALL+1))
 			;;
-
-
-		# ---- 4. Core warnings
+		# ---- 6. Core warnings
 		-w)
-			# Get next arg in list (Exit code)
+			# Get next arg in list (Severity <w|e>)
 			shift
-			SEVERITY="$1"
-
-			# Check valid exit code
-			if [ "$SEVERITY" != "w" ] && [ "$SEVERITY" != "e" ]; then
-				echo "Invalid value \"$SEVERITY\" for option \"-w\"."
+			if ! CHECK_W="$(get_severity "$1")" > /dev/null 2>&1; then
+				echo "Invalid value \"$1\" for option \"-w\"."
 				exit $EXIT_UNKNOWN
 			fi
-
-			# Execute Command
-			MSG_CORE_WARNING="$(check_core_warnings "${DRUPAL_ROOT}")"
-			TMP_EXIT="$?"
-
-			# Merge exit codes
-			if [ "$TMP_EXIT" != "0" ]; then
-				if [ "$SEVERITY" = "e" ]; then
-					CNT_ERROR=$((CNT_ERROR+1))
-					MSG_CORE_WARNING="$(prepend_line "${MSG_CORE_WARNING}" "[CRITICAL] ")"
-					MSG_CORE_WARNING="==== CORE WARNINGS ====\n${MSG_CORE_WARNING}"
-					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
-				else
-					CNT_WARNING=$((CNT_WARNING+1))
-					MSG_CORE_WARNING="$(prepend_line "${MSG_CORE_WARNING}" "[WARNING] ")"
-					MSG_CORE_WARNING="==== CORE WARNINGS ====\n${MSG_CORE_WARNING}"
-					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
-				fi
-				HAS_CORE_WARN_ERROR="true"
-			else
-				CNT_OK=$((CNT_OK+1))
-				MSG_CORE_WARNING="==== CORE WARNINGS ====\n[OK] No core warnings"
-				NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
-			fi
-			CNT_ALL=$((CNT_ALL+1))
 			;;
-
-
-
-		# ---- 5. Missing DB Updates
+		# ---- 7. Missing DB updates
 		-m)
-			# Get next arg in list (Exit code)
+			# Get next arg in list (Severity <w|e>)
 			shift
-			SEVERITY="$1"
-
-			# Check valid exit code
-			if [ "$SEVERITY" != "w" ] && [ "$SEVERITY" != "e" ]; then
-				echo "Invalid value \"$SEVERITY\" for option \"-m\"."
+			if ! CHECK_M="$(get_severity "$1")" > /dev/null 2>&1; then
+				echo "Invalid value \"$1\" for option \"-m\"."
 				exit $EXIT_UNKNOWN
 			fi
-
-			# Execute Command
-			MSG_DB_UPDATE="$(check_db_updates "${DRUPAL_ROOT}")"
-			TMP_EXIT="$?"
-
-			# Merge exit codes
-			if [ "$TMP_EXIT" != "0" ]; then
-				if [ "$SEVERITY" = "e" ]; then
-					CNT_ERROR=$((CNT_ERROR+1))
-					MSG_DB_UPDATE="$(prepend_line "${MSG_DB_UPDATES}" "[CRITICAL] ")"
-					MSG_DB_UPDATE="==== DB UPDATES ====\n${MSG_DB_UPDATES}"
-					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
-				else
-					CNT_WARNING=$((CNT_WARNING+1))
-					MSG_DB_UPDATE="$(prepend_line "${MSG_DB_UPDATES}" "[WARNING] ")"
-					MSG_DB_UPDATE="==== DB UPDATES ====\n${MSG_DB_UPDATES}"
-					NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
-				fi
-				HAS_DB_UPDATE_ERROR="true"
-			else
-				CNT_OK=$((CNT_OK+1))
-				MSG_DB_UPDATE="==== DB UPDATES ====\n[OK] No database updates required"
-				NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
-			fi
-			CNT_ALL=$((CNT_ALL+1))
 			;;
-
-
-		#  ---- 6. Log to logfile
+		# ---- 8. Do we log to file?
 		-l)
-			# Get next arg in list (Exit code)
+			# Get next arg in list (Severity <w|e>)
 			shift
-
-			echo "'-l' is not yet implemented"
-			exit $EXIT_UNKNOWN
-			# TODO: uncomment
-			#LOG_TO_FILE="$1"
+			LOGGING="$1"
 			;;
 		*)
 			printf "Unknown argument: %s\n" "$1"
@@ -840,11 +654,215 @@ done
 
 
 ############################################################
-# Eval results
+# Validate arguments
 ############################################################
 
-# TODO:
-#LOG_TO_FILE=""
+# -d is mandatory!!!
+if [ -z "$DRUPAL_ROOT" ]; then
+	printf "[UNKNOWN] Drupal root parameter '-d' not specified.\n"
+	print_usage
+	exit $EXIT_UNKNOWN
+fi
+
+# Check if it is a valid drupal doc root
+if ! is_drupal_root "${DRUPAL_ROOT}" > /dev/null 2>&1; then
+	echo "[UNKNOWN] '${DRUPAL_ROOT}' is not a valid drupal root directory."
+	exit $EXIT_UNKNOWN
+fi
+
+# Are we logging?
+if [ -n "$LOGGING" ]; then
+
+	# Does the log file exist?
+	if [ -f "$LOGGING" ]; then
+		# Is it writeable?
+		if [ ! -w "$LOGGING" ]; then
+			printf "[UNKNOWN] Logfile not writeable: %s\n" "${LOGGING}"
+			exit $EXIT_UNKNOWN
+		fi
+	else
+		# Create the file
+		if ! touch "${LOGGING}" > /dev/null 2>&1; then
+			printf "[UNKNOWN] Unable to create logfile in %s\n" "${LOGGING}"
+			exit $EXIT_UNKNOWN
+		fi
+	fi
+fi
+
+
+############################################################
+# Go Go Go!!!!
+############################################################
+
+
+#### 1. Check for Drupal Security Updates
+if [ -n "$CHECK_S" ]; then
+
+	SEVERITY="$CHECK_S"
+
+	# Execute Command
+	MSG_SECURITY_UPDATE="$(check_security_updates "${DRUPAL_ROOT}")"
+	TMP_EXIT="$?"
+
+	# Merge exit codes
+	if [ "$TMP_EXIT" != "0" ]; then
+		if [ "$SEVERITY" = "$EXIT_ERR" ]; then
+			CNT_ERROR=$((CNT_ERROR+1))
+			MSG_SECURITY_UPDATE="$(prepend_line "${MSG_SECURITY_UPDATE}" "[CRITICAL] ")"
+			MSG_SECURITY_UPDATE="==== SECURITY UPDATES ====\n${MSG_SECURITY_UPDATE}"
+			NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
+		else
+			CNT_WARNING=$((CNT_WARNING+1))
+			MSG_SECURITY_UPDATE="$(prepend_line "${MSG_SECURITY_UPDATE}" "[WARNING] ")"
+			MSG_SECURITY_UPDATE="==== SECURITY UPDATES ====\n${MSG_SECURITY_UPDATE}"
+			NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
+		fi
+		HAS_SECURITY_UPDATE_ERROR="true"
+	else
+		CNT_OK=$((CNT_OK+1))
+		MSG_SECURITY_UPDATE="==== SECURITY UPDATES ====\n[OK] No Security updates required"
+		NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
+	fi
+	CNT_ALL=$((CNT_ALL+1))
+
+fi
+
+
+#### 2. Check for Drupal normal Updates
+if [ -n "$CHECK_U" ]; then
+
+	SEVERITY="$CHECK_U"
+
+	# Execute Command
+	MSG_SYSTEM_UPDATE="$(check_system_updates "${DRUPAL_ROOT}")"
+	TMP_EXIT="$?"
+
+	# Merge exit codes
+	if [ "$TMP_EXIT" != "0" ]; then
+		if [ "$SEVERITY" = "$EXIT_ERR" ]; then
+			CNT_ERROR=$((CNT_ERROR+1))
+			MSG_SYSTEM_UPDATE="$(prepend_line "${MSG_SYSTEM_UPDATE}" "[CRITICAL] ")"
+			MSG_SYSTEM_UPDATE="==== SYSTEM UPDATES ====\n${MSG_SYSTEM_UPDATE}"
+			NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
+		else
+			CNT_WARNING=$((CNT_WARNING+1))
+			MSG_SYSTEM_UPDATE="$(prepend_line "${MSG_SYSTEM_UPDATE}" "[WARNING] ")"
+			MSG_SYSTEM_UPDATE="==== SYSTEM UPDATES ====\n${MSG_SYSTEM_UPDATE}"
+			NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
+		fi
+		HAS_SYSTEM_UPDATE_ERROR="true"
+	else
+		CNT_OK=$((CNT_OK+1))
+		MSG_SYSTEM_UPDATE="==== SYSTEM UPDATES ====\n[OK]\nNo Updates required"
+		NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
+	fi
+	CNT_ALL=$((CNT_ALL+1))
+
+fi
+
+
+#### 3. Check for Drupal core errors
+if [ -n "$CHECK_E" ]; then
+
+	SEVERITY="$CHECK_E"
+
+	# Execute Command
+	MSG_CORE_ERROR="$(check_core_errors "${DRUPAL_ROOT}")"
+	TMP_EXIT="$?"
+
+	# Merge exit codes
+	if [ "$TMP_EXIT" != "0" ]; then
+		if [ "$SEVERITY" = "$EXIT_ERR" ]; then
+			CNT_ERROR=$((CNT_ERROR+1))
+			MSG_CORE_ERROR="$(prepend_line "${MSG_CORE_ERROR}" "[CRITICAL] ")"
+			MSG_CORE_ERROR="==== CORE ERRORS ====\n${MSG_CORE_ERROR}"
+			NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
+		else
+			CNT_WARNING=$((CNT_WARNING+1))
+			MSG_CORE_ERROR="$(prepend_line "${MSG_CORE_ERROR}" "[WARNING] ")"
+			MSG_CORE_ERROR="==== CORE ERRORS ====\n${MSG_CORE_ERROR}"
+			NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
+		fi
+		HAS_CORE_ERR_ERROR="true"
+	else
+		CNT_OK=$((CNT_OK+1))
+		MSG_CORE_ERROR="==== CORE ERRORS ====\n[OK] No core errors"
+		NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
+	fi
+	CNT_ALL=$((CNT_ALL+1))
+
+fi
+
+
+#### 4. Check for Drupal core warnings
+if [ -n "$CHECK_W" ]; then
+
+	SEVERITY="$CHECK_W"
+
+	# Execute Command
+	MSG_CORE_WARNING="$(check_core_warnings "${DRUPAL_ROOT}")"
+	TMP_EXIT="$?"
+
+	# Merge exit codes
+	if [ "$TMP_EXIT" != "0" ]; then
+		if [ "$SEVERITY" = "$EXIT_ERR" ]; then
+			CNT_ERROR=$((CNT_ERROR+1))
+			MSG_CORE_WARNING="$(prepend_line "${MSG_CORE_WARNING}" "[CRITICAL] ")"
+			MSG_CORE_WARNING="==== CORE WARNINGS ====\n${MSG_CORE_WARNING}"
+			NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
+		else
+			CNT_WARNING=$((CNT_WARNING+1))
+			MSG_CORE_WARNING="$(prepend_line "${MSG_CORE_WARNING}" "[WARNING] ")"
+			MSG_CORE_WARNING="==== CORE WARNINGS ====\n${MSG_CORE_WARNING}"
+			NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
+		fi
+		HAS_CORE_WARN_ERROR="true"
+	else
+		CNT_OK=$((CNT_OK+1))
+		MSG_CORE_WARNING="==== CORE WARNINGS ====\n[OK] No core warnings"
+		NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
+	fi
+	CNT_ALL=$((CNT_ALL+1))
+
+fi
+
+
+#### 5. Check for Drupal missing db updates
+if [ -n "$CHECK_M" ]; then
+
+	SEVERITY="$CHECK_M"
+
+	# Execute Command
+	MSG_DB_UPDATE="$(check_db_updates "${DRUPAL_ROOT}")"
+	TMP_EXIT="$?"
+
+	# Merge exit codes
+	if [ "$TMP_EXIT" != "0" ]; then
+		if [ "$SEVERITY" = "$EXIT_ERR" ]; then
+			CNT_ERROR=$((CNT_ERROR+1))
+			MSG_DB_UPDATE="$(prepend_line "${MSG_DB_UPDATE}" "[CRITICAL] ")"
+			MSG_DB_UPDATE="==== DB UPDATES ====\n${MSG_DB_UPDATE}"
+			NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
+		else
+			CNT_WARNING=$((CNT_WARNING+1))
+			MSG_DB_UPDATE="$(prepend_line "${MSG_DB_UPDATE}" "[WARNING] ")"
+			MSG_DB_UPDATE="==== DB UPDATES ====\n${MSG_DB_UPDATE}"
+			NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
+		fi
+		HAS_DB_UPDATE_ERROR="true"
+	else
+		CNT_OK=$((CNT_OK+1))
+		MSG_DB_UPDATE="==== DB UPDATES ====\n[OK] No database updates required"
+		NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
+	fi
+	CNT_ALL=$((CNT_ALL+1))
+
+fi
+
+
+############################################################
+# Eval results
+############################################################
 
 #### Build status text
 INFO=""
@@ -869,24 +887,35 @@ fi
 # @see http://docs.icinga.org/latest/en/perfdata.html
 # 'label'=value[UOM];[warn];[crit];[min];[max]
 
+OUTPUT=""
 if [ "$NAGIOS_EXIT" = "$EXIT_OK" ]; then
-	printf "%s | %s\n" "[OK] ${DRUPAL_NAME} is healthy" "'OK'=${CNT_OK};;;0;${CNT_ALL} 'Errors'=${CNT_ERROR};1;1;0;${CNT_ALL} 'Warnings'=${CNT_WARNING};1;;0;${CNT_ALL} 'Unknown'=0;;;0;${CNT_ALL}"
+	OUTPUT="$(printf "%s | %s\n" "[OK] ${DRUPAL_NAME} is healthy" "'OK'=${CNT_OK};;;0;${CNT_ALL} 'Errors'=${CNT_ERROR};1;1;0;${CNT_ALL} 'Warnings'=${CNT_WARNING};1;;0;${CNT_ALL} 'Unknown'=0;;;0;${CNT_ALL}")"
 elif [ "$NAGIOS_EXIT" = "$EXIT_WARN" ]; then
-	printf "%s: %s | %s\n" "[WARN] ${DRUPAL_NAME} has warnings" "${INFO}" "'OK'=${CNT_OK};;;0;${CNT_ALL} 'Errors'=${CNT_ERROR};1;1;0;${CNT_ALL} 'Warnings'=${CNT_WARNING};1;;0;${CNT_ALL} 'Unknown'=0;;;0;${CNT_ALL}"
+	OUTPUT="$(printf "%s: %s | %s\n" "[WARN] ${DRUPAL_NAME} has warnings" "${INFO}" "'OK'=${CNT_OK};;;0;${CNT_ALL} 'Errors'=${CNT_ERROR};1;1;0;${CNT_ALL} 'Warnings'=${CNT_WARNING};1;;0;${CNT_ALL} 'Unknown'=0;;;0;${CNT_ALL}")"
 elif [ "$NAGIOS_EXIT" = "$EXIT_ERR" ]; then
-	printf "%s: %s | %s\n" "[ERROR] ${DRUPAL_NAME} has errors" "${INFO}" "'OK'=${CNT_OK};;;0;${CNT_ALL} 'Errors'=${CNT_ERROR};1;1;0;${CNT_ALL} 'Warnings'=${CNT_WARNING};1;;0;${CNT_ALL} 'Unknown'=0;;;0;${CNT_ALL}"
+	OUTPUT="$(printf "%s: %s | %s\n" "[ERROR] ${DRUPAL_NAME} has errors" "${INFO}" "'OK'=${CNT_OK};;;0;${CNT_ALL} 'Errors'=${CNT_ERROR};1;1;0;${CNT_ALL} 'Warnings'=${CNT_WARNING};1;;0;${CNT_ALL} 'Unknown'=0;;;0;${CNT_ALL}")"
 else
-	printf "%s: %s | %s\n" "[UNKNOWN] ${DRUPAL_NAME} is at unknown state - check extended info." "${INFO}" "OK'=0;;;0;${CNT_ALL} 'Errors'=${CNT_ERROR};1;1;0;${CNT_ALL} 'Warnings'=${CNT_WARNING};1;;0;${CNT_ALL} 'Unknown'=1;;;0;${CNT_ALL}"
+	OUTPUT="$(printf "%s: %s | %s\n" "[UNKNOWN] ${DRUPAL_NAME} is at unknown state - check extended info." "${INFO}" "OK'=0;;;0;${CNT_ALL} 'Errors'=${CNT_ERROR};1;1;0;${CNT_ALL} 'Warnings'=${CNT_WARNING};1;;0;${CNT_ALL} 'Unknown'=1;;;0;${CNT_ALL}")"
 fi
 
+#### Extended status data
+if [ "$MSG_SECURITY_UPDATE" != "" ]; then E_OUTPUT="$(merge_text "${E_OUTPUT}" "${MSG_SECURITY_UPDATE}" "\n")"; fi
+if [ "$MSG_SYSTEM_UPDATE"   != "" ]; then E_OUTPUT="$(merge_text "${E_OUTPUT}" "${MSG_SYSTEM_UPDATE}" "\n")";   fi
+if [ "$MSG_CORE_ERROR"      != "" ]; then E_OUTPUT="$(merge_text "${E_OUTPUT}" "${MSG_CORE_ERROR}" "\n")";      fi
+if [ "$MSG_CORE_WARNING"    != "" ]; then E_OUTPUT="$(merge_text "${E_OUTPUT}" "${MSG_CORE_WARNING}" "\n")";    fi
+if [ "$MSG_DB_UPDATE"       != "" ]; then E_OUTPUT="$(merge_text "${E_OUTPUT}" "${MSG_DB_UPDATE}" "\n")";       fi
 
-### Extended status data
+#### Log to file?
+if [ -n "$LOGGING" ]; then
+	echo "${OUTPUT}"		 > "$LOGGING"
+	echo "${E_OUTPUT}"		>> "$LOGGING"
+	echo "${NAGIOS_EXIT}"	>> "$LOGGING"
+	exit 0
+else
+	echo "${OUTPUT}"
+	echo "${E_OUTPUT}"
+	exit "$NAGIOS_EXIT"
+fi
 
-if [ "$MSG_SECURITY_UPDATE" != "" ]; then echo "$MSG_SECURITY_UPDATE"; fi
-if [ "$MSG_SYSTEM_UPDATE"   != "" ]; then echo "$MSG_SYSTEM_UPDATE";   fi
-if [ "$MSG_CORE_ERROR"      != "" ]; then echo "$MSG_CORE_ERROR";      fi
-if [ "$MSG_CORE_WARNING"    != "" ]; then echo "$MSG_CORE_WARNING";    fi
-if [ "$MSG_DB_UPDATE"       != "" ]; then echo "$MSG_DB_UPDATE";       fi
-
-exit "$NAGIOS_EXIT"
+# " vim: set ts=4:
 

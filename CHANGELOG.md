@@ -1,6 +1,13 @@
 Version 0.2 (unreleased)
 -----------
 
+- [Fea]		Implemented `check_drupal_log`
+- [Fix]		Fixed misspelled variables
+- [Enh]		First check all arguments, then run the checks
+- [Enh]		Move scripts to bin directory
+- [Enh]		Doc directory for more documentation
+
+
 Version 0.1
 -----------
 

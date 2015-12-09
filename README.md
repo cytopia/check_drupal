@@ -31,7 +31,6 @@ Nagios drupal plugin to monitor the state of a drupal site via ssh, http or loca
 
 ### 1.1 `check_drupal`
 
-**Note:** Currently the `-l` option is not yet implemented, but will so in a few days/weeks.  
 With `-l` you will be able to run the `check_drupal` locally on each machine only a few times a day and dump the output to a logfile.
 This file can then be checked normaly via nagios by calling `check_drupal_log` instead, which will just read the log and not put any load onto the machine.
 Multiple logfiles for multiple drupal site per server will be possible.

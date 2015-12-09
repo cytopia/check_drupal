@@ -22,8 +22,8 @@ export PATH="$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 
 # Nagios error codes
 EXIT_OK=0
-EXIT_WARN=1
-EXIT_ERR=2
+#EXIT_WARN=1
+#EXIT_ERR=2
 EXIT_UNKNOWN=3
 
 
@@ -152,7 +152,7 @@ fi
 
 # Check if last line contains error code
 NAGIOS_EXIT="$(tail -n1 "$LOGFILE")"
-if ! isint ${NAGIOS_EXIT} > /dev/null 2>&1 ; then
+if ! isint "${NAGIOS_EXIT}" > /dev/null 2>&1 ; then
 	echo "[UNKNOWN] Logfile seems invalid: Does not contain exit code on last line."
 	exit $EXIT_UNKNOWN
 fi
@@ -171,6 +171,7 @@ NUM_LINES="$((NUM_LINES-1))" # Last line is exit code
 OUTPUT="$(head -n${NUM_LINES} "$LOGFILE")"
 
 echo "$OUTPUT"
-exit $NAGIOS_EXIT
+exit "$NAGIOS_EXIT"
+
 # " vim: set ts=4:
 

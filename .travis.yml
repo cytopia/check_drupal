@@ -6,6 +6,6 @@ before_script:
   - sudo apt-get install -qq shellcheck
 
 script:
-  - shellcheck --shell=sh check_drupal
-  - shellcheck --shell=sh check_drupal_log
+  - shellcheck --shell=sh bin/check_drupal
+  - shellcheck --shell=sh bin/check_drupal_log
 

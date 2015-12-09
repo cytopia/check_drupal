@@ -8,6 +8,7 @@ Nagios drupal plugin to monitor the state of a drupal site for security updates,
 
 ##### NOTE
 This check can be used in two ways:
+
 1. Let nagios always trigger `check_drupal` which might take 1-3 seconds and cause some load
 2. Let nagios simply parse the logfile (with `check_drupal_log`) created by `check_drupal` via cron on the target machine.
 

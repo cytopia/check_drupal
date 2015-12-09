@@ -6,7 +6,7 @@ Nagios drupal plugin to monitor the state of a drupal site for security updates,
  [![POSIX](https://img.shields.io/badge/posix-100%25-brightgreen.svg)](https://en.wikipedia.org/?title=POSIX)
  [![Type](https://img.shields.io/badge/type-%2Fbin%2Fsh-red.svg)](https://en.wikipedia.org/?title=Bourne_shell)
 
-##### `NOTE`
+##### NOTE
 This check can be used in two ways:
 1. Let nagios always trigger `check_drupal` which might take 1-3 seconds and cause some load
 2. Let nagios simply parse the logfile (with `check_drupal_log`) created by `check_drupal` via cron on the target machine.

@@ -6,6 +6,10 @@ Nagios drupal plugin to monitor the state of a drupal site for security updates,
  [![POSIX](https://img.shields.io/badge/posix-100%25-brightgreen.svg)](https://en.wikipedia.org/?title=POSIX)
  [![Type](https://img.shields.io/badge/type-%2Fbin%2Fsh-red.svg)](https://en.wikipedia.org/?title=Bourne_shell)
 
+---
+##### :sparkles: `check_drupal` on [Nagios Exchange](https://exchange.nagios.org/directory/Plugins/CMS-and-Blog-Software/Drupal/check-2Ddrupal/details)
+---
+
 ##### NOTE
 This check can be used in two ways:
 

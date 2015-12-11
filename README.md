@@ -1,10 +1,23 @@
 # check_drupal
-Nagios drupal plugin to monitor the state of a drupal site via ssh, http or locally
+Nagios drupal plugin to monitor the state of a drupal site for security updates, system updates, core errors, core warnings and missing db updates.
 
 [![Build Status](https://travis-ci.org/cytopia/check_drupal.svg?branch=master)](https://travis-ci.org/cytopia/check_drupal)
  [![Latest Stable Version](https://poser.pugx.org/cytopia/check_drupal/v/stable)](https://packagist.org/packages/cytopia/check_drupal) [![Total Downloads](https://poser.pugx.org/cytopia/check_drupal/downloads)](https://packagist.org/packages/cytopia/check_drupal) [![Latest Unstable Version](https://poser.pugx.org/cytopia/check_drupal/v/unstable)](https://packagist.org/packages/cytopia/check_drupal) [![License](https://poser.pugx.org/cytopia/check_drupal/license)](http://opensource.org/licenses/MIT)
  [![POSIX](https://img.shields.io/badge/posix-100%25-brightgreen.svg)](https://en.wikipedia.org/?title=POSIX)
  [![Type](https://img.shields.io/badge/type-%2Fbin%2Fsh-red.svg)](https://en.wikipedia.org/?title=Bourne_shell)
+
+---
+##### :sparkles: `check_drupal` on [Nagios Exchange](https://exchange.nagios.org/directory/Plugins/CMS-and-Blog-Software/Drupal/check-2Ddrupal/details)
+---
+
+##### NOTE
+This check can be used in two ways:
+
+1. Let nagios always trigger `check_drupal` which might take 1-3 seconds and cause some load
+2. Let nagios simply parse the logfile (with `check_drupal_log`) created by `check_drupal` via cron on the target machine.
+
+I would recommend the second option as you do not check each drupal site every 5 minutes and also in order to keep the nagios check as fast as possible. For that use cron to trigger the `check_drupal` on the target machine every 6 hours or so.
+
 
 ##### Requirements
 | Program  | Required | Description |
@@ -201,6 +214,15 @@ In the above command definition there is only one arguments. This will point to 
 ```bash
 check command: ssh_drupal_cool-drupal-project
 $ARG1$:        /var/log/drupal_cool-project.log
+```
+
+#### Cron setup
+For this recommended setup to work you need to setup a cronjob on the target machine (where the drupal site is installed) that is run every 6 hours, every day or whatever you want.
+
+Setup multiple cronjobs with multiple logfiles if you have multiple drupal sites on this machine that you want to monitor.
+
+```cron
+0 */6 * * * /path/to/check_drupal -d /var/www/cool-drupal-project/drupal/ -n "Cool Project" -s e -u w -e e -w w -m e -l /var/log/drupal_cool-project.log
 ```
 
 

@@ -1,0 +1,24 @@
+name: check_drupal
+description: "file:///README.md"
+url: "https://github.com/cytopia/check_drupal"
+tags: CMS
+vendor: Linux
+target: Operating System
+type: Plugin
+license: MIT
+releases: 
+  - 
+    name: 0.2
+    description: "0.2 Release"
+    files: 
+      - 
+        name: check_drupal
+        url: "file:///bin/check_drupal"
+        description: "Second release"
+        checksum: 0f03daec86e68099eb64f12aef50c4cb
+      - 
+        name: check_drupal_log
+        url: "file:///bin/check_drupal_log"
+        description: "Second release"
+        checksum: e89c99d3028633740bf7620d539fa151
+

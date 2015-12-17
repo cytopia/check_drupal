@@ -7,7 +7,10 @@ Nagios drupal plugin to monitor the state of a drupal site for security updates,
  [![Type](https://img.shields.io/badge/type-%2Fbin%2Fsh-red.svg)](https://en.wikipedia.org/?title=Bourne_shell)
 
 ---
-##### :sparkles: `check_drupal` on [Nagios Exchange](https://exchange.nagios.org/directory/Plugins/CMS-and-Blog-Software/Drupal/check-2Ddrupal/details)
+
+* `check_drupal` on [Icinga Exchange](https://exchange.icinga.org/cytopia/check_drupal)
+* `check_drupal` on [Nagios Exchange](https://exchange.nagios.org/directory/Plugins/CMS-and-Blog-Software/Drupal/check-2Ddrupal/details)
+
 ---
 
 ##### NOTE

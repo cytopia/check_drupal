@@ -52,7 +52,7 @@ This file can then be checked normaly via nagios by calling `check_drupal_log` i
 Multiple logfiles for multiple drupal site per server will be possible.
 
 ```shell
-Usage: check_drupal -d <drupal root> [-n <name>] [-s <w|e>] [-u <w|e>] [-e <w|e>] [-w <w|e>] [-m <w|e>] [-l <log file>]
+Usage: check_drupal -d <drupal root> [-n <name>] [-s <w|e>] [-u <w|e>] [-e <w|e>] [-w <w|e>] [-m <w|e>] [-i <uri>] [-l <log file>]
 OR     check_drupal --check
 OR     check_drupal --help
 OR     check_drupal --version
@@ -95,6 +95,17 @@ For each check you can specify the nagios severity (error or warning).
                          when you update core or modules and forget the db).
                          Warning:  -m w
                          Error:    -m e
+
+  -i <uri>               [optional] Parse in an url for a drupal multisite instance.
+                         'drush --uri':
+                         In Drupal 7, the value of --uri should always be
+                         the same as when the site is being accessed from a web browser
+                         (e.g. http://mysite.org, although the http:// is optional).
+                         In Drupal 6, the value of --uri should always be the same as the
+                         site's folder name in the 'sites' folder (e.g. default); it is best
+                         if the site folder name matches the URI from the browser, and is consistent
+                         on every instance of the same site
+                         (e.g. also use sites/mysite.org for http://dev.mysite.org).
 
   -l <log file>          [optional] Instead of checking all of the above via nagios
                          every five minutes or so, run this script via cron once a day

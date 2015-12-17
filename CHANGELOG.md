@@ -1,6 +1,8 @@
 Version 0.3 (unreleased)
 -----------
 
+- [Fea]		Implemented multisite checking via `-i`
+
 
 Version 0.2
 -----------

@@ -13,6 +13,11 @@ Nagios drupal plugin to monitor the state of a drupal site for security updates,
 
 ---
 
+![PerfData](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/icinga.png)
+
+
+---
+
 ##### NOTE
 This check can be used in two ways:
 
@@ -131,11 +136,6 @@ Nagios plugin that will parse the logfile created by 'check_drupal'.
 The following examples are run directly from the command line. The exit code will always be aggregated, meaning if the program throws a warning and an error, the final exit code will result in an error.
 
 Also to note: The first line until the `|` represents the actual nagios output. Everything in the first line behind the `|` is performance data used to generate the cool charts. Everything from line two onwards is nagios extended status info (when you click on details).
-
-
-**Nagios/Icinga view**
-
-![PerfData](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/icinga.png)
 
 
 **Check for security updates**

@@ -26,7 +26,7 @@ I would recommend the second option as you do not check each drupal site every 5
 | Program  | Required | Description |
 | ------------- | ------------- | -------- |
 | bourne shell (sh)  | yes  | The whole script is written in pure bourne shell (sh) and is 100% Posix compliant |
-| [check_by_ssh](https://www.monitoring-plugins.org/doc/man/check_by_ssh.html)  | yes  | This nagios plugin is used as a wrapper to check on remote hosts |
+| [check_by_ssh](https://www.monitoring-plugins.org/doc/man/check_by_ssh.html) or<br/>[NRPE](https://exchange.nagios.org/directory/Addons/Monitoring-Agents/NRPE--2D-Nagios-Remote-Plugin-Executor/details) | yes  | check_by_ssh is used as a wrapper to check on remote hosts. Alternatively you can use NRPE as reported here: [Issue #2](https://github.com/cytopia/check_drupal/issues/2) |
 | [drush](http://www.drush.org) | yes  | This nagios plugin requires drush to be installed on the target machine |
 
 ##### Features

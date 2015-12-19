@@ -132,6 +132,10 @@ The following examples are run directly from the command line. The exit code wil
 
 Also to note: The first line until the `|` represents the actual nagios output. Everything in the first line behind the `|` is performance data used to generate the cool charts. Everything from line two onwards is nagios extended status info (when you click on details).
 
+
+![PerfData](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/icinga.png)
+
+
 **Check for security updates**
 ```bash
 ./check_drupal -d /shared/httpd/sites-drupal/COOL-PROJECT/drupal/ -n COOL-PROJECT -s e

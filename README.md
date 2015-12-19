@@ -17,7 +17,7 @@ Nagios drupal plugin to monitor the state of a drupal site for security updates,
 ![Status](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/icinga.png)
 
 **Details**  
-![Status](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/detauls.png)
+![Status](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/details.png)
 
 ---
 

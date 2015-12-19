@@ -1,7 +1,18 @@
-Version 0.3 (unreleased)
+Version 0.4 (unreleased)
 -----------
 
 - [Fea]		Implemented multisite checking via `-i`
+
+
+Version 0.3
+-----------
+
+- [Fea]		Added performance data: Sec Updates
+- [Fea]		Added performance data: Updates
+- [Fea]		Added performance data: Core errors
+- [Fea]		Added performance data: Core warnings
+- [Fea]		Added performance data: DB migrations
+- [Fea]		Improved short output
 
 
 Version 0.2

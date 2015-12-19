@@ -455,7 +455,7 @@ print_help() {
 	# Show help and details
 	printf "Nagios plugin that will check drupal sites for errors.\n"
 	printf "Errors include the following: available security updates,\n"
-	printf "missed database updates and drupal status errors.\n"
+	printf "missed database migrations and drupal status errors.\n"
 	printf "For each check you can specify the nagios severity (error or warning).\n\n"
 
 	printf "  -d <drupal root>       The full path to the drupal document root (usually\n"
@@ -862,7 +862,7 @@ if [ -n "$CHECK_M" ]; then
 		fi
 	else
 		CNT_OK=$((CNT_OK+1))
-		MSG_DB_UPDATE="==== DB UPDATES ====\n[OK] No database updates required"
+		MSG_DB_UPDATE="==== DB UPDATES ====\n[OK] No database migrations required"
 		NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
 	fi
 	CNT_ALL=$((CNT_ALL+1))

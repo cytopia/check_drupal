@@ -59,7 +59,7 @@ OR     check_drupal --version
 
 Nagios plugin that will check drupal sites for errors.
 Errors include the following: available security updates,
-missed database updates and drupal status errors.
+missed database migrations and drupal status errors.
 For each check you can specify the nagios severity (error or warning).
 
   -d <drupal root>       The full path to the drupal document root (usually
@@ -176,14 +176,14 @@ Also to note: The first line until the `|` represents the actual nagios output. 
 ==== CORE WARNINGS ====
 [WARNING] Token
 ==== DB UPDATES ====
-[OK] No database updates required
+[OK] No database migrations required
 ```
 **Check for db updates**
 ```bash
 ./check_drupal -d /shared/httpd/sites-drupal/COOL-PROJECT/drupal/ -n COOL-PROJECT -m e
 [OK] COOL-PROJECT is healty | 'Security Updates'=0;;;; 'Updates'=0;;;; 'Core Errors'=0;;;; 'Core Warnings'=0;;;; 'Database Migrations'=0;;;; 'OK'=1;;;0;1 'Errors'=0;1;1;0;1 'Warnings'=0;1;;0;1 'Unknown'=0;;;0;1
 ==== DB UPDATES ====
-[OK] No database updates required
+[OK] No database migrations required
 ```
 
 ## 3. Nagios Configuration
@@ -204,7 +204,7 @@ $ARG1$:        /var/www/cool-drupal-project/drupal/
 $ARG2$:        Cool Drupal Project
 $ARG3$:        -s e -u w -e e -w w -m e
 ```
-The above service defintion will check against security updates (with nagios error), against normal updates (with nagios warning), against core errors (with nagios error), against core warnings (with nagios warning) and finally against missed database updates (with nagios error).
+The above service defintion will check against security updates (with nagios error), against normal updates (with nagios warning), against core errors (with nagios error), against core warnings (with nagios warning) and finally against missed database migrations (with nagios error).
 
 ### 3.2 check_drupal_log
 

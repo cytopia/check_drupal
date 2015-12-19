@@ -1,6 +1,13 @@
 Version 0.3 (unreleased)
 -----------
 
+- [Fea]		Added performance data: Sec Updates
+- [Fea]		Added performance data: Updates
+- [Fea]		Added performance data: Core errors
+- [Fea]		Added performance data: Core warnings
+- [Fea]		Added performance data: DB migrations
+- [Fea]		Improved short output
+
 
 Version 0.2
 -----------

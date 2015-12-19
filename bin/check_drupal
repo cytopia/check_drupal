@@ -13,9 +13,9 @@
 INFO_NAME="check_drupal"
 INFO_AUTHOR="Patrick Plocke <patrick@plocke.de>"
 INFO_GPGKEY="0x28BF179F"
-INFO_DATE="2015-12-09"
+INFO_DATE="2015-12-19"
 INFO_LICENSE="MIT"
-INFO_VERSION="0.2"
+INFO_VERSION="0.3"
 
 # Get the path
 export PATH="$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
@@ -486,7 +486,7 @@ print_help() {
 	printf "                         Warning:  -w w\n"
 	printf "                         Error:    -w e\n\n"
 
-	printf "  -m <w|e>               [optional] Check for drupal missed database updates\n"
+	printf "  -m <w|e>               [optional] Check for drupal missed database migrations\n"
 	printf "                         and return nagios error or warning. (They can occur\n"
 	printf "                         when you update core or modules and forget the db).\n"
 	printf "                         Warning:  -m w\n"
@@ -559,11 +559,11 @@ MSG_CORE_WARNING=""
 MSG_DB_UPDATE=""
 
 # Info for normal Status message if there is an error/warning
-HAS_SECURITY_UPDATE_ERROR=""
-HAS_SYSTEM_UPDATE_ERROR=""
-HAS_CORE_ERR_ERROR=""
-HAS_CORE_WARN_ERROR=""
-HAS_DB_UPDATE_ERROR=""
+CNT_SECURITY_UPDATE_ERROR="0"
+CNT_SYSTEM_UPDATE_ERROR="0"
+CNT_CORE_ERR_ERROR="0"
+CNT_CORE_WARN_ERROR="0"
+CNT_DB_UPDATE_ERROR="0"
 
 # Count warnings and errors for performance data
 CNT_ALL=0
@@ -706,6 +706,9 @@ if [ -n "$CHECK_S" ]; then
 
 	# Merge exit codes
 	if [ "$TMP_EXIT" != "0" ]; then
+		# Count lines as number of issues
+		CNT_SECURITY_UPDATE_ERROR="$(echo "${MSG_SECURITY_UPDATE}" | wc -l | xargs)"
+
 		if [ "$SEVERITY" = "$EXIT_ERR" ]; then
 			CNT_ERROR=$((CNT_ERROR+1))
 			MSG_SECURITY_UPDATE="$(prepend_line "${MSG_SECURITY_UPDATE}" "[CRITICAL] ")"
@@ -717,7 +720,6 @@ if [ -n "$CHECK_S" ]; then
 			MSG_SECURITY_UPDATE="==== SECURITY UPDATES ====\n${MSG_SECURITY_UPDATE}"
 			NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
 		fi
-		HAS_SECURITY_UPDATE_ERROR="true"
 	else
 		CNT_OK=$((CNT_OK+1))
 		MSG_SECURITY_UPDATE="==== SECURITY UPDATES ====\n[OK] No Security updates required"
@@ -739,6 +741,9 @@ if [ -n "$CHECK_U" ]; then
 
 	# Merge exit codes
 	if [ "$TMP_EXIT" != "0" ]; then
+		# Count lines as number of issues
+		CNT_SYSTEM_UPDATE_ERROR="$(echo "${MSG_SYSTEM_UPDATE}" | wc -l | xargs)"
+
 		if [ "$SEVERITY" = "$EXIT_ERR" ]; then
 			CNT_ERROR=$((CNT_ERROR+1))
 			MSG_SYSTEM_UPDATE="$(prepend_line "${MSG_SYSTEM_UPDATE}" "[CRITICAL] ")"
@@ -750,7 +755,6 @@ if [ -n "$CHECK_U" ]; then
 			MSG_SYSTEM_UPDATE="==== SYSTEM UPDATES ====\n${MSG_SYSTEM_UPDATE}"
 			NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
 		fi
-		HAS_SYSTEM_UPDATE_ERROR="true"
 	else
 		CNT_OK=$((CNT_OK+1))
 		MSG_SYSTEM_UPDATE="==== SYSTEM UPDATES ====\n[OK]\nNo Updates required"
@@ -772,6 +776,9 @@ if [ -n "$CHECK_E" ]; then
 
 	# Merge exit codes
 	if [ "$TMP_EXIT" != "0" ]; then
+		# Count lines as number of issues
+		CNT_CORE_ERR_ERROR="$(echo "${MSG_CORE_ERROR}" | wc -l | xargs)"
+
 		if [ "$SEVERITY" = "$EXIT_ERR" ]; then
 			CNT_ERROR=$((CNT_ERROR+1))
 			MSG_CORE_ERROR="$(prepend_line "${MSG_CORE_ERROR}" "[CRITICAL] ")"
@@ -783,7 +790,6 @@ if [ -n "$CHECK_E" ]; then
 			MSG_CORE_ERROR="==== CORE ERRORS ====\n${MSG_CORE_ERROR}"
 			NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
 		fi
-		HAS_CORE_ERR_ERROR="true"
 	else
 		CNT_OK=$((CNT_OK+1))
 		MSG_CORE_ERROR="==== CORE ERRORS ====\n[OK] No core errors"
@@ -805,6 +811,9 @@ if [ -n "$CHECK_W" ]; then
 
 	# Merge exit codes
 	if [ "$TMP_EXIT" != "0" ]; then
+		# Count lines as number of issues
+		CNT_CORE_WARN_ERROR="$(echo "${MSG_CORE_WARNING}" | wc -l | xargs)"
+
 		if [ "$SEVERITY" = "$EXIT_ERR" ]; then
 			CNT_ERROR=$((CNT_ERROR+1))
 			MSG_CORE_WARNING="$(prepend_line "${MSG_CORE_WARNING}" "[CRITICAL] ")"
@@ -816,7 +825,6 @@ if [ -n "$CHECK_W" ]; then
 			MSG_CORE_WARNING="==== CORE WARNINGS ====\n${MSG_CORE_WARNING}"
 			NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
 		fi
-		HAS_CORE_WARN_ERROR="true"
 	else
 		CNT_OK=$((CNT_OK+1))
 		MSG_CORE_WARNING="==== CORE WARNINGS ====\n[OK] No core warnings"
@@ -838,6 +846,9 @@ if [ -n "$CHECK_M" ]; then
 
 	# Merge exit codes
 	if [ "$TMP_EXIT" != "0" ]; then
+		# Count lines as number of issues
+		CNT_DB_UPDATE_ERROR="$(echo "${MSG_DB_UPDATE}" | wc -l | xargs)"
+
 		if [ "$SEVERITY" = "$EXIT_ERR" ]; then
 			CNT_ERROR=$((CNT_ERROR+1))
 			MSG_DB_UPDATE="$(prepend_line "${MSG_DB_UPDATE}" "[CRITICAL] ")"
@@ -849,7 +860,6 @@ if [ -n "$CHECK_M" ]; then
 			MSG_DB_UPDATE="==== DB UPDATES ====\n${MSG_DB_UPDATE}"
 			NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
 		fi
-		HAS_DB_UPDATE_ERROR="true"
 	else
 		CNT_OK=$((CNT_OK+1))
 		MSG_DB_UPDATE="==== DB UPDATES ====\n[OK] No database updates required"
@@ -866,37 +876,70 @@ fi
 
 #### Build status text
 INFO=""
-if [ "$HAS_SECURITY_UPDATE_ERROR" != "" ]; then
-	INFO="$(merge_text "${INFO}" "Security update(s)" ", ")"
+if [ "$CNT_SECURITY_UPDATE_ERROR" != "0" ]; then
+	if [ "$CNT_SECURITY_UPDATE_ERROR" = "1" ]; then
+		INFO="$(merge_text "${INFO}" "1 Security update" ", ")"
+	else
+		INFO="$(merge_text "${INFO}" "${CNT_SECURITY_UPDATE_ERROR} Security updates" ", ")"
+	fi
 fi
-if [ "$HAS_SYSTEM_UPDATE_ERROR" != "" ]; then
-	INFO="$(merge_text "${INFO}" "Update(s)" ", ")"
+if [ "$CNT_SYSTEM_UPDATE_ERROR" != "0" ]; then
+	if [ "$CNT_SYSTEM_UPDATE_ERROR" = "1" ]; then
+		INFO="$(merge_text "${INFO}" "1 Update" ", ")"
+	else
+		INFO="$(merge_text "${INFO}" "${CNT_SYSTEM_UPDATE_ERROR} Updates" ", ")"
+	fi
 fi
-if [ "$HAS_CORE_ERR_ERROR" != "" ]; then
-	INFO="$(merge_text "${INFO}" "Core error(s)" ", ")"
+if [ "$CNT_CORE_ERR_ERROR" != "0" ]; then
+	if [ "$CNT_CORE_ERR_ERROR" = "1" ]; then
+		INFO="$(merge_text "${INFO}" "1 Core error" ", ")"
+	else
+		INFO="$(merge_text "${INFO}" "${CNT_CORE_ERR_ERROR} Core errors" ", ")"
+	fi
 fi
-if [ "$HAS_CORE_WARN_ERROR" != "" ]; then
-	INFO="$(merge_text "${INFO}" "Core warning(s)" ", ")"
+if [ "$CNT_CORE_WARN_ERROR" != "0" ]; then
+	if [ "$CNT_CORE_WARN_ERROR" = "1" ]; then
+		INFO="$(merge_text "${INFO}" "1 Core warning" ", ")"
+	else
+		INFO="$(merge_text "${INFO}" "${CNT_CORE_WARN_ERROR} Core warnings" ", ")"
+	fi
 fi
-if [ "$HAS_DB_UPDATE_ERROR" != "" ]; then
-	INFO="$(merge_text "${INFO}" "DB update(s)" ", ")"
+if [ "$CNT_DB_UPDATE_ERROR" != "0" ]; then
+	if [ "$CNT_DB_UPDATE_ERROR" = "1" ]; then
+		INFO="$(merge_text "${INFO}" "1 DB migration" ", ")"
+	else
+		INFO="$(merge_text "${INFO}" "${CNT_DB_UPDATE_ERROR} DB migrations" ", ")"
+	fi
+fi
+
+#### Short output (std status)
+OUTPUT=""
+if [ "$NAGIOS_EXIT" = "$EXIT_OK" ]; then
+	OUTPUT="$(printf "[OK] %s is healty" "${DRUPAL_NAME}")"
+elif [ "$NAGIOS_EXIT" = "$EXIT_WARN" ]; then
+	OUTPUT="$(printf "[WARNING] %s has warnings: %s" "${DRUPAL_NAME}" "${INFO}")"
+elif [ "$NAGIOS_EXIT" = "$EXIT_ERR" ]; then
+	OUTPUT="$(printf "[CRITICAL] %s has errors: %s" "${DRUPAL_NAME}" "${INFO}")"
+else
+	OUTPUT="$(printf "[UNKNOWN] %s is at unknown state - check extended info" "${DRUPAL_NAME}")"
 fi
 
 
 #### Performance Data
 # @see http://docs.icinga.org/latest/en/perfdata.html
 # 'label'=value[UOM];[warn];[crit];[min];[max]
+PERF=""
+PERF="$(printf "%s'Security Updates'=%d;;;; "    "${PERF}" "${CNT_SECURITY_UPDATE_ERROR}")"
+PERF="$(printf "%s'Updates'=%d;;;; "             "${PERF}" "${CNT_SYSTEM_UPDATE_ERROR}")"
+PERF="$(printf "%s'Core Errors'=%d;;;; "         "${PERF}" "${CNT_CORE_ERR_ERROR}")"
+PERF="$(printf "%s'Core Warnings'=%d;;;; "       "${PERF}" "${CNT_CORE_WARN_ERROR}")"
+PERF="$(printf "%s'Database Migrations'=%d;;;; " "${PERF}" "${CNT_DB_UPDATE_ERROR}")"
 
-OUTPUT=""
-if [ "$NAGIOS_EXIT" = "$EXIT_OK" ]; then
-	OUTPUT="$(printf "%s | %s\n" "[OK] ${DRUPAL_NAME} is healthy" "'OK'=${CNT_OK};;;0;${CNT_ALL} 'Errors'=${CNT_ERROR};1;1;0;${CNT_ALL} 'Warnings'=${CNT_WARNING};1;;0;${CNT_ALL} 'Unknown'=0;;;0;${CNT_ALL}")"
-elif [ "$NAGIOS_EXIT" = "$EXIT_WARN" ]; then
-	OUTPUT="$(printf "%s: %s | %s\n" "[WARN] ${DRUPAL_NAME} has warnings" "${INFO}" "'OK'=${CNT_OK};;;0;${CNT_ALL} 'Errors'=${CNT_ERROR};1;1;0;${CNT_ALL} 'Warnings'=${CNT_WARNING};1;;0;${CNT_ALL} 'Unknown'=0;;;0;${CNT_ALL}")"
-elif [ "$NAGIOS_EXIT" = "$EXIT_ERR" ]; then
-	OUTPUT="$(printf "%s: %s | %s\n" "[ERROR] ${DRUPAL_NAME} has errors" "${INFO}" "'OK'=${CNT_OK};;;0;${CNT_ALL} 'Errors'=${CNT_ERROR};1;1;0;${CNT_ALL} 'Warnings'=${CNT_WARNING};1;;0;${CNT_ALL} 'Unknown'=0;;;0;${CNT_ALL}")"
-else
-	OUTPUT="$(printf "%s: %s | %s\n" "[UNKNOWN] ${DRUPAL_NAME} is at unknown state - check extended info." "${INFO}" "OK'=0;;;0;${CNT_ALL} 'Errors'=${CNT_ERROR};1;1;0;${CNT_ALL} 'Warnings'=${CNT_WARNING};1;;0;${CNT_ALL} 'Unknown'=1;;;0;${CNT_ALL}")"
-fi
+PERF="$(printf "%s'OK'=%d;;;0;%d "        "${PERF}" "${CNT_OK}"      "${CNT_ALL}")"
+PERF="$(printf "%s'Errors'=%d;1;1;0;%d "  "${PERF}" "${CNT_ERROR}"   "${CNT_ALL}")"
+PERF="$(printf "%s'Warnings'=%d;1;;0;%d " "${PERF}" "${CNT_WARNING}" "${CNT_ALL}")"
+PERF="$(printf "%s'Unknown'=0;;;0;%d "    "${PERF}" "${CNT_ALL}")"
+
 
 #### Extended status data
 if [ "$MSG_SECURITY_UPDATE" != "" ]; then E_OUTPUT="$(merge_text "${E_OUTPUT}" "${MSG_SECURITY_UPDATE}" "\n")"; fi
@@ -905,14 +948,15 @@ if [ "$MSG_CORE_ERROR"      != "" ]; then E_OUTPUT="$(merge_text "${E_OUTPUT}" "
 if [ "$MSG_CORE_WARNING"    != "" ]; then E_OUTPUT="$(merge_text "${E_OUTPUT}" "${MSG_CORE_WARNING}" "\n")";    fi
 if [ "$MSG_DB_UPDATE"       != "" ]; then E_OUTPUT="$(merge_text "${E_OUTPUT}" "${MSG_DB_UPDATE}" "\n")";       fi
 
+
 #### Log to file?
 if [ -n "$LOGGING" ]; then
-	echo "${OUTPUT}"		 > "$LOGGING"
-	echo "${E_OUTPUT}"		>> "$LOGGING"
-	echo "${NAGIOS_EXIT}"	>> "$LOGGING"
+	echo "${OUTPUT} | ${PERF}"	 > "$LOGGING"
+	echo "${E_OUTPUT}"			>> "$LOGGING"
+	echo "${NAGIOS_EXIT}"		>> "$LOGGING"
 	exit 0
 else
-	echo "${OUTPUT}"
+	echo "${OUTPUT} | ${PERF}"
 	echo "${E_OUTPUT}"
 	exit "$NAGIOS_EXIT"
 fi

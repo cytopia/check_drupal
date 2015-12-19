@@ -1,5 +1,5 @@
 # check_drupal
-Nagios drupal plugin to monitor the state of a drupal site for security updates, system updates, core errors, core warnings and missing db updates.
+Nagios drupal plugin to monitor the state of a drupal site for security updates, system updates, core errors, core warnings and missing database migrations.
 
 [![Build Status](https://travis-ci.org/cytopia/check_drupal.svg?branch=master)](https://travis-ci.org/cytopia/check_drupal)
  [![Latest Stable Version](https://poser.pugx.org/cytopia/check_drupal/v/stable)](https://packagist.org/packages/cytopia/check_drupal) [![Total Downloads](https://poser.pugx.org/cytopia/check_drupal/downloads)](https://packagist.org/packages/cytopia/check_drupal) [![Latest Unstable Version](https://poser.pugx.org/cytopia/check_drupal/v/unstable)](https://packagist.org/packages/cytopia/check_drupal) [![License](https://poser.pugx.org/cytopia/check_drupal/license)](http://opensource.org/licenses/MIT)
@@ -32,7 +32,7 @@ I would recommend the second option as you do not check each drupal site every 5
 ##### Features
 * Check for Drupal security updates
 * Check for Drupal system updates
-* Check for Drupal required database updates
+* Check for Drupal required database migrations
 * Check for Drupal core errors
 * Check for Drupal core warnings
 * Every check can specify its own nagios severity (Error or Warning)
@@ -90,7 +90,7 @@ For each check you can specify the nagios severity (error or warning).
                          Warning:  -w w
                          Error:    -w e
 
-  -m <w|e>               [optional] Check for drupal missed database updates
+  -m <w|e>               [optional] Check for drupal missed database migrations
                          and return nagios error or warning. (They can occur
                          when you update core or modules and forget the db).
                          Warning:  -m w
@@ -135,7 +135,7 @@ Also to note: The first line until the `|` represents the actual nagios output. 
 **Check for security updates**
 ```bash
 ./check_drupal -d /shared/httpd/sites-drupal/COOL-PROJECT/drupal/ -n COOL-PROJECT -s e
-[ERROR] COOL-PROJECT has errors: Security update(s) | 'OK'=0;;;0;1 'Errors'=1;1;1;0;1 'Warnings'=0;1;;0;1 'Unknown'=0;;;0;1
+[CRITICAL] COOL-PROJECT has errors: 2 Security updates | 'Security Updates'=2;;;; 'Updates'=0;;;; 'Core Errors'=0;;;; 'Core Warnings'=0;;;; 'Database Migrations'=0;;;; 'OK'=0;;;0;1 'Errors'=1;1;1;0;1 'Warnings'=0;1;;0;1 'Unknown'=0;;;0;1
 ==== SECURITY UPDATES ====
 [CRITICAL] drupal 7.40 -> 7.41
 [CRITICAL] jquery_update 7.x-2.6 -> 7.x-2.7
@@ -144,27 +144,29 @@ Also to note: The first line until the `|` represents the actual nagios output. 
 **Check for security and normal updates**
 ```bash
 ./check_drupal -d /shared/httpd/sites-drupal/COOL-PROJECT/drupal/ -n COOL-PROJECT -s e -u w
-[ERROR] COOL-PROJECT has errors: Security update(s), Update(s) | 'OK'=0;;;0;2 'Errors'=1;1;1;0;2 'Warnings'=1;1;;0;2 'Unknown'=0;;;0;2
+[CRITICAL] COOL-PROJECT has errors: 3 Security updates, 3 Updates | 'Security Updates'=3;;;; 'Updates'=3;;;; 'Core Errors'=0;;;; 'Core Warnings'=0;;;; 'Database Migrations'=0;;;; 'OK'=0;;;0;2 'Errors'=1;1;1;0;2 'Warnings'=1;1;;0;2 'Unknown'=0;;;0;2
 ==== SECURITY UPDATES ====
 [CRITICAL] drupal 7.40 -> 7.41
+[CRITICAL] block_class 7.x-2.1 -> 7.x-2.3
 [CRITICAL] jquery_update 7.x-2.6 -> 7.x-2.7
 ==== SYSTEM UPDATES ====
 [WARNING] field_collection 7.x-1.0-beta9 -> 7.x-1.0-beta10
 [WARNING] views 7.x-3.11 -> 7.x-3.13
-[WARNING] bootstrap 7.x-3.0 -> 7.x-3.1
+[WARNING] bootstrap 7.x-3.0 -> 7.x-3.4
 ```
 
 **Check for all possible stuff**
 ```bash
 ./check_drupal -d /shared/httpd/sites-drupal/COOL-PROJECT/drupal/ -n COOL-PROJECT -s e -u w -e e -w w -m e
-[ERROR] COOL-PROJECT has errors: Security update(s), Update(s), Core error(s), Core warning(s) | 'OK'=1;;;0;5 'Errors'=2;1;1;0;5 'Warnings'=2;1;;0;5 'Unknown'=0;;;0;5
+[CRITICAL] COOL-PROJECT has errors: 3 Security updates, 3 Updates, 5 Core errors, 1 Core warning | 'Security Updates'=3;;;; 'Updates'=3;;;; 'Core Errors'=5;;;; 'Core Warnings'=1;;;; 'Database Migrations'=0;;;; 'OK'=1;;;0;5 'Errors'=2;1;1;0;5 'Warnings'=2;1;;0;5 'Unknown'=0;;;0;5
 ==== SECURITY UPDATES ====
 [CRITICAL] drupal 7.40 -> 7.41
+[CRITICAL] block_class 7.x-2.1 -> 7.x-2.3
 [CRITICAL] jquery_update 7.x-2.6 -> 7.x-2.7
 ==== SYSTEM UPDATES ====
 [WARNING] field_collection 7.x-1.0-beta9 -> 7.x-1.0-beta10
 [WARNING] views 7.x-3.11 -> 7.x-3.13
-[WARNING] bootstrap 7.x-3.0 -> 7.x-3.1
+[WARNING] bootstrap 7.x-3.0 -> 7.x-3.4
 ==== CORE ERRORS ====
 [CRITICAL] CKeditor
 [CRITICAL] Cron-Wartungsaufgaben
@@ -179,7 +181,7 @@ Also to note: The first line until the `|` represents the actual nagios output. 
 **Check for db updates**
 ```bash
 ./check_drupal -d /shared/httpd/sites-drupal/COOL-PROJECT/drupal/ -n COOL-PROJECT -m e
-[OK] COOL-PROJECT is healthy | 'OK'=1;;;0;1 'Errors'=0;1;1;0;1 'Warnings'=0;1;;0;1 'Unknown'=0;;;0;1
+[OK] COOL-PROJECT is healty | 'Security Updates'=0;;;; 'Updates'=0;;;; 'Core Errors'=0;;;; 'Core Warnings'=0;;;; 'Database Migrations'=0;;;; 'OK'=1;;;0;1 'Errors'=0;1;1;0;1 'Warnings'=0;1;;0;1 'Unknown'=0;;;0;1
 ==== DB UPDATES ====
 [OK] No database updates required
 ```

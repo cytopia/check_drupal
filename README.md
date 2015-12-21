@@ -13,6 +13,14 @@ Nagios drupal plugin to monitor the state of a drupal site for security updates,
 
 ---
 
+**Overview**  
+![Status](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/icinga.png)
+
+**Details**  
+![Status](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/details.png)
+
+---
+
 ##### NOTE
 This check can be used in two ways:
 
@@ -143,6 +151,7 @@ The following examples are run directly from the command line. The exit code wil
 
 Also to note: The first line until the `|` represents the actual nagios output. Everything in the first line behind the `|` is performance data used to generate the cool charts. Everything from line two onwards is nagios extended status info (when you click on details).
 
+
 **Check for security updates**
 ```bash
 ./check_drupal -d /shared/httpd/sites-drupal/COOL-PROJECT/drupal/ -n COOL-PROJECT -s e
@@ -241,13 +250,36 @@ Setup multiple cronjobs with multiple logfiles if you have multiple drupal sites
 0 */6 * * * /path/to/check_drupal -d /var/www/cool-drupal-project/drupal/ -n "Cool Project" -s e -u w -e e -w w -m e -l /var/log/drupal_cool-project.log
 ```
 
+## 4. Performance data
+
+Screenshots taken from an [Icinga](https://www.icinga.org/) setup
+
+### 4.1 Specific data
+The following performance data gives detailed information about specific errors/warnings that have occured
+![PerfData](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/01_sec-updates.png)
+![PerfData](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/02_updates.png)
+![PerfData](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/03_core-errors.png)
+![PerfData](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/04_core-warnings.png)
+![PerfData](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/05_db-migrations.png)
+
+### 4.2 General data
+The following performance data gives a general overview about how many OK's, Errors, Warnings and Unknowns have happened over time. This way you can also see how quickly the reaction time has been to occured problems.
+
+**Best practise:**
+* OK: should always be a high vertical line
+* Error: Should only have short peaks
+* Warning: Should only have short peaks
+* Unknown: Should never happen
+![PerfData](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/06_ok.png)
+![PerfData](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/07_errors.png)
+![PerfData](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/08_warnings.png)
+![PerfData](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/09_unknowns.png)
 
 
-
-## 4. License
+## 5. License
 [![license](https://poser.pugx.org/cytopia/check_drupal/license)](http://opensource.org/licenses/mit)
 
-## 5. Awesome
+## 6. Awesome
 
 Added by the following [![Awesome](https://cdn.rawgit.com/sindresorhus/awesome/d7305f38d29fed78fa85652e3a63e154dd8e8829/media/badge.svg)](https://github.com/sindresorhus/awesome) lists:
 

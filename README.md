@@ -1,5 +1,5 @@
 # check_drupal
-Nagios drupal plugin to monitor the state of a drupal site for security updates, system updates, core errors, core warnings and missing database migrations.
+Nagios drupal plugin to monitor the state of a drupal site and/or drupal multisite for security updates, system updates, core errors, core warnings and missing database migrations.
 
 [![Build Status](https://travis-ci.org/cytopia/check_drupal.svg?branch=master)](https://travis-ci.org/cytopia/check_drupal)
  [![Latest Stable Version](https://poser.pugx.org/cytopia/check_drupal/v/stable)](https://packagist.org/packages/cytopia/check_drupal) [![Total Downloads](https://poser.pugx.org/cytopia/check_drupal/downloads)](https://packagist.org/packages/cytopia/check_drupal) [![Latest Unstable Version](https://poser.pugx.org/cytopia/check_drupal/v/unstable)](https://packagist.org/packages/cytopia/check_drupal) [![License](https://poser.pugx.org/cytopia/check_drupal/license)](http://opensource.org/licenses/MIT)
@@ -38,6 +38,7 @@ I would recommend the second option as you do not check each drupal site every 5
 | [drush](http://www.drush.org) | yes  | This nagios plugin requires drush to be installed on the target machine |
 
 ##### Features
+* Multisite support
 * Check for Drupal security updates
 * Check for Drupal system updates
 * Check for Drupal required database migrations

@@ -13,9 +13,9 @@
 INFO_NAME="check_drupal"
 INFO_AUTHOR="Patrick Plocke <patrick@plocke.de>"
 INFO_GPGKEY="0x28BF179F"
-INFO_DATE="2015-12-19"
+INFO_DATE="2015-12-21"
 INFO_LICENSE="MIT"
-INFO_VERSION="0.3"
+INFO_VERSION="0.4"
 
 # Get the path
 export PATH="$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
@@ -210,18 +210,22 @@ is_drupal_root() {
 ############################################################
 
 # Check if security updates are required.
+#
 # @param  string  Path to Drupal root.
+# @param  string  Drupal multisite URI
 # @output string  Drupal Security Updates.
 # @return integer Nagios exit code.
 check_security_updates() {
 
 	_drupal_root="${1}"
+	_multisite_uri="${2}"
 
-	# go to drupal root dir if it exists,
-	# otherwise return
-	cd "${_drupal_root}" || return "$EXIT_UNKNOWN"
-
-	_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} pm-updatestatus --nocolor --security-only --format=csv --fields='name,installed version,proposed version,message' 2> /dev/null)"
+	# No URI specified (single site)
+	if [ -z "${_multisite_uri}" ]; then
+		_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" pm-updatestatus --nocolor --security-only --format=csv --fields='name,installed version,proposed version,message' 2> /dev/null)"
+	else
+		_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" --uri="${_multisite_uri}" pm-updatestatus --nocolor --security-only --format=csv --fields='name,installed version,proposed version,message' 2> /dev/null)"
+	fi
 
 	# Error might have multiple causes...
 	# Drupal database not connected?
@@ -243,19 +247,23 @@ check_security_updates() {
 }
 
 # Check if normal system updates are required.
+#
 # @param  string  Path to Drupal root.
+# @param  string  Drupal multisite URI
 # @output string  Drupal System Updates.
 # @return integer Nagios exit code.
 check_system_updates() {
 
 	_drupal_root="${1}"
-
-	# go to drupal root dir if it exists,
-	# otherwise return
-	cd "${_drupal_root}" || return "$EXIT_UNKNOWN"
+	_multisite_uri="${2}"
 
 	# read comma separated security updates
-	_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} pm-updatestatus --nocolor --format=csv --fields='name,installed version,proposed version,message' 2> /dev/null)"
+	# No URI specified (single site)
+	if [ -z "${_multisite_uri}" ]; then
+		_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" pm-updatestatus --nocolor --format=csv --fields='name,installed version,proposed version,message' 2> /dev/null)"
+	else
+		_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" --uri="${_multisite_uri}" pm-updatestatus --nocolor --format=csv --fields='name,installed version,proposed version,message' 2> /dev/null)"
+	fi
 
 	# Error might have multiple causes...
 	# Drupal database not connected?
@@ -281,19 +289,23 @@ check_system_updates() {
 }
 
 # Check if core errors are present.
+#
 # @param  string  Path to Drupal root.
+# @param  string  Drupal multisite URI
 # @output string  Drupal Core errors.
 # @return integer Nagios exit code.
 check_core_errors() {
 
 	_drupal_root="${1}"
+	_multisite_uri="${2}"
 
-	# go to drupal root dir if it exists,
-	# otherwise return
-	cd "${_drupal_root}" || return 3
-
-	# read comma separated security updates
-	_core_errors="$(LC_MESSAGES=${LOCALE} ${DRUSH} core-requirements --severity=2 --no-field-labels --format=table --fields='severity,title' 2>/dev/null)"
+	# read comma separated core errors
+	# No URI specified (single site)
+	if [ -z "${_multisite_uri}" ]; then
+		_core_errors="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" core-requirements --severity=2 --no-field-labels --format=table --fields='severity,title' 2>/dev/null)"
+	else
+		_core_errors="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" --uri="${_multisite_uri}" core-requirements --severity=2 --no-field-labels --format=table --fields='severity,title' 2>/dev/null)"
+	fi
 
 	# Error might have multiple causes...
 	# Drupal database not connected?
@@ -322,19 +334,23 @@ check_core_errors() {
 }
 
 # Check if core warnings are present.
+#
 # @param  string  Path to Drupal root.
+# @param  string  Drupal multisite URI
 # @output string  Drupal Core errors.
 # @return integer Nagios exit code.
 check_core_warnings() {
 
 	_drupal_root="${1}"
+	_multisite_uri="${2}"
 
-	# go to drupal root dir if it exists,
-	# otherwise return
-	cd "${_drupal_root}" || return 3
-
-	# read comma separated security updates
-	_core_warnings="$(LC_MESSAGES=${LOCALE} ${DRUSH} core-requirements --severity=1 --no-field-labels --format=table --fields='severity,title' 2>/dev/null)"
+	# read comma separated core warnings
+	# No URI specified (single site)
+	if [ -z "${_multisite_uri}" ]; then
+		_core_warnings="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" core-requirements --severity=1 --no-field-labels --format=table --fields='severity,title' 2>/dev/null)"
+	else
+		_core_warnings="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" --uri="${_multisite_uri}" core-requirements --severity=1 --no-field-labels --format=table --fields='severity,title' 2>/dev/null)"
+	fi
 
 	# Error might have multiple causes...
 	# Drupal database not connected?
@@ -367,19 +383,23 @@ check_core_warnings() {
 }
 
 # Check if the database requires updates.
+#
 # @param  string  Path to Drupal root.
+# @param  string  Drupal multisite URI
 # @output string  Required db updates.
 # @return integer Nagios exit code.
 check_db_updates() {
 
 	_drupal_root="${1}"
+	_multisite_uri="${2}"
 
-	# go to drupal root dir if it exists,
-	# otherwise return
-	cd "${_drupal_root}" || return "$EXIT_UNKNOWN"
-
-	# read comma separated security updates
-	_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} pm-updatestatus --nocolor --no-field-labels --format=csv --fields='module,update_id' 2> /dev/null)"
+	# read comma separated db migrations
+	# No URI specified (single site)
+	if [ -z "${_multisite_uri}" ]; then
+		_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" pm-updatestatus --nocolor --no-field-labels --format=csv --fields='module,update_id' 2> /dev/null)"
+	else
+		_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" --uri="${_multisite_uri}" pm-updatestatus --nocolor --no-field-labels --format=csv --fields='module,update_id' 2> /dev/null)"
+	fi
 
 	# Error might have multiple causes...
 	# Drupal database not connected?
@@ -437,7 +457,7 @@ check() {
 # @output string  The usage screen.
 # @return integer 0
 print_usage() {
-	printf "Usage: %s -d <drupal root> [-n <name>] [-s <w|e>] [-u <w|e>] [-e <w|e>] [-w <w|e>] [-m <w|e>] [-l <log file>]\n" "${INFO_NAME}"
+	printf "Usage: %s -d <drupal root> [-n <name>] [-s <w|e>] [-u <w|e>] [-e <w|e>] [-w <w|e>] [-m <w|e>] [-i <uri>] [-l <log file>]\n" "${INFO_NAME}"
 	printf "OR     %s --check\n" "${INFO_NAME}"
 	printf "OR     %s --help\n" "${INFO_NAME}"
 	printf "OR     %s --version\n\n" "${INFO_NAME}"
@@ -491,6 +511,17 @@ print_help() {
 	printf "                         when you update core or modules and forget the db).\n"
 	printf "                         Warning:  -m w\n"
 	printf "                         Error:    -m e\n\n"
+
+	printf "  -i <uri>               [optional] Parse in an url for a drupal multisite instance.\n"
+	printf "                         'drush --uri':\n"
+	printf "                         In Drupal 7, the value of --uri should always be\n"
+	printf "                         the same as when the site is being accessed from a web browser\n"
+	printf "                         (e.g. http://mysite.org, although the http:// is optional).\n"
+	printf "                         In Drupal 6, the value of --uri should always be the same as the\n"
+	printf "                         site's folder name in the 'sites' folder (e.g. default); it is best\n"
+	printf "                         if the site folder name matches the URI from the browser, and is consistent\n"
+	printf "                         on every instance of the same site\n"
+	printf "                         (e.g. also use sites/mysite.org for http://dev.mysite.org).\n\n"
 
 	printf "  -l <log file>          [optional] Instead of checking all of the above via nagios\n"
 	printf "                         every five minutes or so, run this script via cron once a day\n"
@@ -550,6 +581,9 @@ fi
 
 # This will be filled in the the specified arguments.
 DRUPAL_NAME="Drupal"
+
+# Url for drupal multisite
+MULTISITE_URI=""
 
 # Extended Status Message
 MSG_SECURITY_UPDATE=""
@@ -637,9 +671,15 @@ while test -n "$1"; do
 				exit $EXIT_UNKNOWN
 			fi
 			;;
-		# ---- 8. Do we log to file?
+		# ---- 8. Do we have an URI for a multisite?
+		-i)
+			# Get next arg in list (URL)
+			shift
+			MULTISITE_URI="$1"
+			;;
+			# ---- 9. Do we log to file?
 		-l)
-			# Get next arg in list (Severity <w|e>)
+			# Get next arg in list (log file)
 			shift
 			LOGGING="$1"
 			;;
@@ -701,7 +741,7 @@ if [ -n "$CHECK_S" ]; then
 	SEVERITY="$CHECK_S"
 
 	# Execute Command
-	MSG_SECURITY_UPDATE="$(check_security_updates "${DRUPAL_ROOT}")"
+	MSG_SECURITY_UPDATE="$(check_security_updates "${DRUPAL_ROOT}" "${MULTISITE_URI}")"
 	TMP_EXIT="$?"
 
 	# Merge exit codes
@@ -736,7 +776,7 @@ if [ -n "$CHECK_U" ]; then
 	SEVERITY="$CHECK_U"
 
 	# Execute Command
-	MSG_SYSTEM_UPDATE="$(check_system_updates "${DRUPAL_ROOT}")"
+	MSG_SYSTEM_UPDATE="$(check_system_updates "${DRUPAL_ROOT}" "${MULTISITE_URI}")"
 	TMP_EXIT="$?"
 
 	# Merge exit codes
@@ -771,7 +811,7 @@ if [ -n "$CHECK_E" ]; then
 	SEVERITY="$CHECK_E"
 
 	# Execute Command
-	MSG_CORE_ERROR="$(check_core_errors "${DRUPAL_ROOT}")"
+	MSG_CORE_ERROR="$(check_core_errors "${DRUPAL_ROOT}" "${MULTISITE_URI}")"
 	TMP_EXIT="$?"
 
 	# Merge exit codes
@@ -806,7 +846,7 @@ if [ -n "$CHECK_W" ]; then
 	SEVERITY="$CHECK_W"
 
 	# Execute Command
-	MSG_CORE_WARNING="$(check_core_warnings "${DRUPAL_ROOT}")"
+	MSG_CORE_WARNING="$(check_core_warnings "${DRUPAL_ROOT}" "${MULTISITE_URI}")"
 	TMP_EXIT="$?"
 
 	# Merge exit codes
@@ -841,7 +881,7 @@ if [ -n "$CHECK_M" ]; then
 	SEVERITY="$CHECK_M"
 
 	# Execute Command
-	MSG_DB_UPDATE="$(check_db_updates "${DRUPAL_ROOT}")"
+	MSG_DB_UPDATE="$(check_db_updates "${DRUPAL_ROOT}" "${MULTISITE_URI}")"
 	TMP_EXIT="$?"
 
 	# Merge exit codes

@@ -1,4 +1,14 @@
-Version 0.3 (unreleased)
+Version 0.5 (unreleased)
+-----------
+
+
+Version 0.4
+-----------
+
+- [Fea]		Implemented multisite checking via `-i`
+
+
+Version 0.3
 -----------
 
 - [Fea]		Added performance data: Sec Updates

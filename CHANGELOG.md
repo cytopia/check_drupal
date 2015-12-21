@@ -1,4 +1,8 @@
-Version 0.4 (unreleased)
+Version 0.5 (unreleased)
+-----------
+
+
+Version 0.4
 -----------
 
 - [Fea]		Implemented multisite checking via `-i`

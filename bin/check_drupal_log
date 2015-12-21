@@ -13,7 +13,7 @@
 INFO_NAME="check_drupal_log"
 INFO_AUTHOR="Patrick Plocke <patrick@plocke.de>"
 INFO_GPGKEY="0x28BF179F"
-INFO_DATE="2015-12-19"
+INFO_DATE="2015-12-21"
 INFO_LICENSE="MIT"
 INFO_VERSION="0.4"
 

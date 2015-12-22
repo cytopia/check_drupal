@@ -285,3 +285,4 @@ The following performance data gives a general overview about how many OK's, Err
 Added by the following [![Awesome](https://cdn.rawgit.com/sindresorhus/awesome/d7305f38d29fed78fa85652e3a63e154dd8e8829/media/badge.svg)](https://github.com/sindresorhus/awesome) lists:
 
 * [awesome-nagios-plugins](https://github.com/cytopia/awesome-nagios-plugins)
+* [mrsinguyen/awesome-drupal](https://github.com/mrsinguyen/awesome-drupal)

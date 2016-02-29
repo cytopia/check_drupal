@@ -302,9 +302,9 @@ check_core_errors() {
 	# read comma separated core errors
 	# No URI specified (single site)
 	if [ -z "${_multisite_uri}" ]; then
-		_core_errors="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" core-requirements --severity=2 --no-field-labels --format=table --fields='severity,title' 2>/dev/null)"
+		_core_errors="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" core-requirements --severity=2 --field-labels=0 --format=table --fields='severity,title' 2>/dev/null)"
 	else
-		_core_errors="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" --uri="${_multisite_uri}" core-requirements --severity=2 --no-field-labels --format=table --fields='severity,title' 2>/dev/null)"
+		_core_errors="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" --uri="${_multisite_uri}" core-requirements --severity=2 --field-labels=0 --format=table --fields='severity,title' 2>/dev/null)"
 	fi
 
 	# Error might have multiple causes...

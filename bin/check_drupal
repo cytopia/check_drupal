@@ -191,14 +191,8 @@ is_drupal_root() {
 		return 1
 	fi
 
-	if [ ! -f "${1}/includes/bootstrap.inc" ]; then
-		return 1
-	fi
-
-	# Test for drupal constant
-	# Drupal7:   'DRUPAL_ROOT'
-	# Drupal6+7: 'DRUPAL_BOOTSTRAP_FULL'
-	if ! grep 'DRUPAL_BOOTSTRAP_FULL' "${1}/index.php" 1>/dev/null; then
+	# Use drush to test root
+	if ! drush -r "${1}" status | grep 'Drupal root' 1>/dev/null; then
 		return 1
 	fi
 	return 0

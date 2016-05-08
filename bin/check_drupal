@@ -955,7 +955,7 @@ fi
 #### Short output (std status)
 OUTPUT=""
 if [ "$NAGIOS_EXIT" = "$EXIT_OK" ]; then
-	OUTPUT="$(printf "[OK] %s is healty" "${DRUPAL_NAME}")"
+	OUTPUT="$(printf "[OK] %s is healthy" "${DRUPAL_NAME}")"
 elif [ "$NAGIOS_EXIT" = "$EXIT_WARN" ]; then
 	OUTPUT="$(printf "[WARNING] %s has warnings: %s" "${DRUPAL_NAME}" "${INFO}")"
 elif [ "$NAGIOS_EXIT" = "$EXIT_ERR" ]; then

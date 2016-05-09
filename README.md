@@ -13,6 +13,14 @@ Nagios drupal plugin to monitor the state of a drupal site and/or drupal multisi
 
 ---
 
+**Tested on**  
+
+* Drupal 6
+* Drupal 7
+* Drupal 8
+
+---
+
 **Overview**  
 ![Status](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/icinga.png)
 

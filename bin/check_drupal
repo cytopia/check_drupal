@@ -71,6 +71,15 @@ trim_lines() {
 	echo "${_str}" | grep -v '^$'
 }
 
+#
+# Remove annoying BOM
+#
+remove_bom() {
+	_str="${1}"
+	echo "${_str}" | sed '1s/^\xEF\xBB\xBF//'
+}
+
+
 # Check for a valid severity and return the
 # appropriate nagios exit code
 # Allowed values: 'w' or 'e'
@@ -309,6 +318,7 @@ check_core_errors() {
 	fi
 
 	# Trim the string
+	_core_errors="$(remove_bom "${_core_errors}")"
 	_core_errors="$(trim_lines "${_core_errors}")"
 	_core_errors="$(trim "${_core_errors}")"
 

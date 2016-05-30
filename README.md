@@ -13,7 +13,7 @@ Nagios drupal plugin to monitor the state of a drupal site and/or drupal multisi
 
 ---
 
-**Tested on**  
+**Tested on**
 
 * Drupal 6
 * Drupal 7
@@ -21,10 +21,10 @@ Nagios drupal plugin to monitor the state of a drupal site and/or drupal multisi
 
 ---
 
-**Overview**  
+**Overview**
 ![Status](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/icinga.png)
 
-**Details**  
+**Details**
 ![Status](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/details.png)
 
 ---
@@ -81,6 +81,9 @@ For each check you can specify the nagios severity (error or warning).
 
   -d <drupal root>       The full path to the drupal document root (usually
                          the 'drupal' folder. This parameter is required.
+
+  -c <drush config file> The full path to a drushrc.php config file to be used
+                         by drush. This parameter is optional.
 
   -n <name>              [optional] Specify a name for the drupal instance to
                          appear on the nagios output. The default is 'Drupal'

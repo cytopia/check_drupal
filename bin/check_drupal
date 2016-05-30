@@ -720,6 +720,10 @@ if ! is_drupal_root "${DRUPAL_ROOT}" > /dev/null 2>&1; then
 	exit $EXIT_UNKNOWN
 fi
 
+if [ -n "$DRUSH_CONFIG" ]; then
+    DRUSH="${DRUSH} --config=${DRUSH_CONFIG}"
+fi
+
 # Are we logging?
 if [ -n "$LOGGING" ]; then
 

@@ -207,6 +207,32 @@ is_drupal_root() {
 	return 0
 }
 
+# Writes a drushrc.php file to /tmp
+write_drushrc() {
+  echo "<?php" > '/tmp/drushrc.php'
+  echo "// Drush commands should always be run in en." >> '/tmp/drushrc.php'
+  echo "\$options['variables']['language_default'] = (object) array(" >> '/tmp/drushrc.php'
+  echo "  'language' => 'en'," >> '/tmp/drushrc.php'
+  echo "  'name' => 'English'," >> '/tmp/drushrc.php'
+  echo "  'native' => 'English'," >> '/tmp/drushrc.php'
+  echo "  'direction' => '0'," >> '/tmp/drushrc.php'
+  echo "  'enabled' => 1," >> '/tmp/drushrc.php'
+  echo "  'plurals' => '0'," >> '/tmp/drushrc.php'
+  echo "  'formula' => ''," >> '/tmp/drushrc.php'
+  echo "  'domain' => ''," >> '/tmp/drushrc.php'
+  echo "  'prefix' => 'en'," >> '/tmp/drushrc.php'
+  echo "  'weight' => '0'," >> '/tmp/drushrc.php'
+  echo "  'javascript' => ''," >> '/tmp/drushrc.php'
+  echo ");" >> '/tmp/drushrc.php'
+}
+
+# Removes the drushrc.php file from /tmp if it exists
+remove_drushrc() {
+  if [ -f '/tmp/drushrc.php' ]; then
+    rm -f '/tmp/drushrc.php'
+  fi
+}
+
 
 ############################################################
 # Drush check functions
@@ -696,6 +722,10 @@ while test -n "$1"; do
 	shift
 done
 
+# Use a drushrc.php file to set the language to english
+write_drushrc
+DRUSH="${DRUSH} --config=/tmp/drushrc.php"
+
 
 ############################################################
 # Validate arguments
@@ -1004,6 +1034,8 @@ else
 	echo "${E_OUTPUT}"
 	exit "$NAGIOS_EXIT"
 fi
+
+remove_drushrc
 
 # " vim: set ts=4:
 

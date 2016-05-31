@@ -389,9 +389,8 @@ check_core_warnings() {
 		return $EXIT_UNKNOWN
 	fi
 
-	# Only keep "Warnung", "Warning", ... TODO: Other languages or make it outut always in english
-	# But how???
-	_core_warnings="$(echo "${_core_warnings}" | grep -E 'Warning|Warnung')"
+	# Only keep "Warning"
+	_core_warnings="$(echo "${_core_warnings}" | grep -E 'Warning')"
 
 	# Trim the string
 	_core_warnings="$(trim_lines "${_core_warnings}")"

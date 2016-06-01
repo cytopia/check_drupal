@@ -1,6 +1,7 @@
 Version 0.5 (unreleased)
 -----------
 
+- [Fea]		Set language for drush commands to English through forced config file
 
 Version 0.4
 -----------

@@ -207,30 +207,60 @@ is_drupal_root() {
 	return 0
 }
 
-# Writes a drushrc.php file to /tmp
+# Create randomly named drushrc file
+# @output	string	Returns path to file on success
+# @return	integer Success
 write_drushrc() {
-  echo "<?php" > '/tmp/drushrc.php'
-  echo "// Drush commands should always be run in en." >> '/tmp/drushrc.php'
-  echo "\$options['variables']['language_default'] = (object) array(" >> '/tmp/drushrc.php'
-  echo "  'language' => 'en'," >> '/tmp/drushrc.php'
-  echo "  'name' => 'English'," >> '/tmp/drushrc.php'
-  echo "  'native' => 'English'," >> '/tmp/drushrc.php'
-  echo "  'direction' => '0'," >> '/tmp/drushrc.php'
-  echo "  'enabled' => 1," >> '/tmp/drushrc.php'
-  echo "  'plurals' => '0'," >> '/tmp/drushrc.php'
-  echo "  'formula' => ''," >> '/tmp/drushrc.php'
-  echo "  'domain' => ''," >> '/tmp/drushrc.php'
-  echo "  'prefix' => 'en'," >> '/tmp/drushrc.php'
-  echo "  'weight' => '0'," >> '/tmp/drushrc.php'
-  echo "  'javascript' => ''," >> '/tmp/drushrc.php'
-  echo ");" >> '/tmp/drushrc.php'
+	_ret=0
+
+	# Generate random tmpfile
+	if ! command -v mktemp >/dev/null 2>&1; then
+		_rand="$(LC_ALL=C tr -dc 'a-z0-9' < /dev/urandom | head -c 32)"
+		_file="/tmp/.drushrc.${_rand}"
+		touch "${_file}"
+		_ret=$?
+	else
+		_file="$(mktemp)"
+		_ret=$?
+	fi
+
+	# Quit on error immediately
+	if [ ${_ret} -ne 0 ]; then
+		return ${_ret}
+	fi
+
+	# Write file
+	{
+		echo "<?php"
+		echo "// Drush commands should always be run in en."
+		echo "\$options['variables']['language_default'] = (object) array("
+		echo "  'language' => 'en',"
+		echo "  'name' => 'English',"
+		echo "  'native' => 'English',"
+		echo "  'direction' => '0',"
+		echo "  'enabled' => 1,"
+		echo "  'plurals' => '0',"
+		echo "  'formula' => '',"
+		echo "  'domain' => '',"
+		echo "  'prefix' => 'en',"
+		echo "  'weight' => '0',"
+		echo "  'javascript' => '',"
+		echo ");"
+	} > "${_file}"
+
+	# Return filename
+	echo "${_file}"
+	return 0
 }
 
+
 # Removes the drushrc.php file from /tmp if it exists
+# @param	string	Path to drush file
 remove_drushrc() {
-  if [ -f '/tmp/drushrc.php' ]; then
-    rm -f '/tmp/drushrc.php'
-  fi
+	_file="${1}"
+	if [ -f "${_file}" ]; then
+		rm -f "${_file}"
+	fi
 }
 
 
@@ -722,8 +752,13 @@ while test -n "$1"; do
 done
 
 # Use a drushrc.php file to set the language to english
-write_drushrc
-DRUSH="${DRUSH} --config=/tmp/drushrc.php"
+DRUSHRC="$(write_drushrc)"
+if [ $? -ne 0 ]; then
+	printf "[UNKNOWN] Unable to create tmpfile\n"
+	exit $EXIT_UNKNOWN
+fi
+
+DRUSH="${DRUSH} --config=${DRUSHRC}"
 
 
 ############################################################
@@ -943,6 +978,16 @@ if [ -n "$CHECK_M" ]; then
 fi
 
 
+
+############################################################
+# Cleanup
+############################################################
+
+# Remove temporary file
+remove_drushrc "${DRUSHRC}"
+
+
+
 ############################################################
 # Eval results
 ############################################################
@@ -1034,7 +1079,6 @@ else
 	exit "$NAGIOS_EXIT"
 fi
 
-remove_drushrc
 
 # " vim: set ts=4:
 

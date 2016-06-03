@@ -1,7 +1,21 @@
-Version 0.5 (unreleased)
+Version 0.7 (unreleased)
+-----------
+
+
+
+Version 0.6
 -----------
 
 - [Fea]		Set language for drush commands to English through forced config file
+
+
+Version 0.5
+-----------
+
+- [Fea]		Drupal 8 support
+- [Fix]		Fix core error detection
+- [Fix]		Fix spelling
+
 
 Version 0.4
 -----------

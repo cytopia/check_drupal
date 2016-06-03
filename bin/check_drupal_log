@@ -13,9 +13,9 @@
 INFO_NAME="check_drupal_log"
 INFO_AUTHOR="Patrick Plocke <patrick@plocke.de>"
 INFO_GPGKEY="0x28BF179F"
-INFO_DATE="2015-12-21"
+INFO_DATE="2016-06-03"
 INFO_LICENSE="MIT"
-INFO_VERSION="0.4"
+INFO_VERSION="0.6"
 
 # Get the path
 export PATH="$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"

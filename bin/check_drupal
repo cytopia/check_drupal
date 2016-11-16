@@ -293,6 +293,10 @@ check_security_updates() {
 		return $EXIT_UNKNOWN
 	fi
 
+	if [[ "${_updates}" == *"Locked via drush"* ]]; then
+		return $EXIT_OK
+	fi
+
 	if [ "${_updates}" != "" ]; then
 		# Format security updates
 		# "<name> <ver> -> <ver>"
@@ -334,6 +338,9 @@ check_system_updates() {
 	# Remove normal updates and only keep security updates
 	_updates="$(echo "${_updates}" | grep -v 'SECURITY UPDATE')"
 
+        if [[ "${_updates}" == *"Locked via drush"* ]]; then
+                return $EXIT_OK
+        fi
 
 	if [ "${_updates}" != "" ]; then
 		# Format security updates

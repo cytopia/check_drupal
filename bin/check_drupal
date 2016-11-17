@@ -293,11 +293,13 @@ check_security_updates() {
 		return $EXIT_UNKNOWN
 	fi
 
+	# Remove via drush locked updates, keep the rest
+        _updates="$(echo "${updates}" | sed '/Locked\ via\ drush/d')"
+
 	if [ "${_updates}" != "" ]; then
 		# Format security updates
-		# But filter locked updates
 		# "<name> <ver> -> <ver>"
-		_updates="$(echo "${_updates}" | sed '/Locked\ via\ drush/d' | awk 'BEGIN {FS=","} ; { print $1" "$2" -> "$3 }')"
+		_updates="$(echo "${_updates}" | awk 'BEGIN {FS=","} ; { print $1" "$2" -> "$3 }')"
 
 		# tango out
 		echo "${_updates}"
@@ -335,11 +337,13 @@ check_system_updates() {
 	# Remove normal updates and only keep security updates
 	_updates="$(echo "${_updates}" | grep -v 'SECURITY UPDATE')"
 
+	# Remove via drush locked updates, keep the rest
+	_updates="$(echo "${updates}" | sed '/Locked\ via\ drush/d')"
+
 	if [ "${_updates}" != "" ]; then
 		# Format security updates
-		# But filter locked updates
 		# "<name> <ver> -> <ver>"
-		_updates="$(echo "${_updates}" | sed '/Locked\ via\ drush/d' | awk 'BEGIN {FS=","} ; { print $1" "$2" -> "$3 }')"
+		_updates="$(echo "${_updates}" | awk 'BEGIN {FS=","} ; { print $1" "$2" -> "$3 }')"
 
 		# tango out
 		echo "${_updates}"

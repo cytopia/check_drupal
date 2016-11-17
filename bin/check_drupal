@@ -293,14 +293,11 @@ check_security_updates() {
 		return $EXIT_UNKNOWN
 	fi
 
-	if [[ "${_updates}" == *"Locked via drush"* ]]; then
-		return $EXIT_OK
-	fi
-
 	if [ "${_updates}" != "" ]; then
 		# Format security updates
+		# But filter locked updates
 		# "<name> <ver> -> <ver>"
-		_updates="$(echo "${_updates}" | awk 'BEGIN {FS=","} ; { print $1" "$2" -> "$3 }')"
+		_updates="$(echo "${_updates}" | sed '/Locked\ via\ drush/d' | awk 'BEGIN {FS=","} ; { print $1" "$2" -> "$3 }')"
 
 		# tango out
 		echo "${_updates}"
@@ -338,14 +335,11 @@ check_system_updates() {
 	# Remove normal updates and only keep security updates
 	_updates="$(echo "${_updates}" | grep -v 'SECURITY UPDATE')"
 
-        if [[ "${_updates}" == *"Locked via drush"* ]]; then
-                return $EXIT_OK
-        fi
-
 	if [ "${_updates}" != "" ]; then
 		# Format security updates
+		# But filter locked updates
 		# "<name> <ver> -> <ver>"
-		_updates="$(echo "${_updates}" | awk 'BEGIN {FS=","} ; { print $1" "$2" -> "$3 }')"
+		_updates="$(echo "${_updates}" | sed '/Locked\ via\ drush/d' | awk 'BEGIN {FS=","} ; { print $1" "$2" -> "$3 }')"
 
 		# tango out
 		echo "${_updates}"

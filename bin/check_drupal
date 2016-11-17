@@ -294,7 +294,7 @@ check_security_updates() {
 	fi
 
 	# Remove via drush locked updates, keep the rest
-        _updates="$(echo "${updates}" | sed '/Locked\ via\ drush/d')"
+        _updates="$(echo "${_updates}" | sed '/Locked\ via\ drush/d')"
 
 	if [ "${_updates}" != "" ]; then
 		# Format security updates
@@ -338,7 +338,7 @@ check_system_updates() {
 	_updates="$(echo "${_updates}" | grep -v 'SECURITY UPDATE')"
 
 	# Remove via drush locked updates, keep the rest
-	_updates="$(echo "${updates}" | sed '/Locked\ via\ drush/d')"
+	_updates="$(echo "${_updates}" | sed '/Locked\ via\ drush/d')"
 
 	if [ "${_updates}" != "" ]; then
 		# Format security updates

@@ -293,6 +293,11 @@ check_security_updates() {
 		return $EXIT_UNKNOWN
 	fi
 
+	# Remove via drush locked updates, keep the rest
+        if [ "$LOCK" = "1" ]; then
+		_updates="$(echo "${_updates}" | sed '/Locked\ via\ drush/d')"
+	fi
+
 	if [ "${_updates}" != "" ]; then
 		# Format security updates
 		# "<name> <ver> -> <ver>"
@@ -334,6 +339,10 @@ check_system_updates() {
 	# Remove normal updates and only keep security updates
 	_updates="$(echo "${_updates}" | grep -v 'SECURITY UPDATE')"
 
+	# Remove via drush locked updates, keep the rest
+        if [ "$LOCK" = "1" ]; then
+		_updates="$(echo "${_updates}" | sed '/Locked\ via\ drush/d')"
+	fi
 
 	if [ "${_updates}" != "" ]; then
 		# Format security updates
@@ -516,7 +525,7 @@ check() {
 # @output string  The usage screen.
 # @return integer 0
 print_usage() {
-	printf "Usage: %s -d <drupal root> [-n <name>] [-s <w|e>] [-u <w|e>] [-e <w|e>] [-w <w|e>] [-m <w|e>] [-i <uri>] [-l <log file>]\n" "${INFO_NAME}"
+	printf "Usage: %s -d <drupal root> [-n <name>] [-s <w|e>] [-u <w|e>] [-e <w|e>] [-w <w|e>] [-m <w|e>] [-i <uri>] [-l <log file>] [-r]\n" "${INFO_NAME}"
 	printf "OR     %s --check\n" "${INFO_NAME}"
 	printf "OR     %s --help\n" "${INFO_NAME}"
 	printf "OR     %s --version\n\n" "${INFO_NAME}"
@@ -542,8 +551,6 @@ print_help() {
 
 	printf "  -n <name>              [optional] Specify a name for the drupal instance to\n"
 	printf "                         appear on the nagios output. The default is 'Drupal'\n\n"
-
-	printf "                         the 'drupal' folder. This parameter is required.\n\n"
 
 	printf "  -s <w|e>               [optional] Check for drupal core and module security\n"
 	printf "                         updates and return nagios error or warning.\n"
@@ -591,6 +598,9 @@ print_help() {
 	printf "                         Example:\n"
 	printf "                         check_drupal -d /var/www -s e -e e -w w -l /var/log/drupal.log\n"
 	printf "                         check_drupal_log -l /var/log/drupal.log\n\n"
+
+	printf "  -r                     [optional] Filters all updates that are locked via drush.\n"
+	printf "                         For general infos about locking run 'drush pm-updatestats -h'\n\n"
 
 	printf "  --check                Check for program requirements.\n"
 	printf "  --help                 Show this help\n"
@@ -663,6 +673,9 @@ CNT_ALL=0
 CNT_OK=0
 CNT_ERROR=0
 CNT_WARNING=0
+
+# Do we ignore locked updates?
+LOCK="0"
 
 # Final exit code
 NAGIOS_EXIT="${EXIT_OK}"
@@ -741,6 +754,10 @@ while test -n "$1"; do
 			# Get next arg in list (log file)
 			shift
 			LOGGING="$1"
+			;;
+			# ---- 10. Do we skip locked updates?
+		-r)
+			LOCK="1"
 			;;
 		*)
 			printf "Unknown argument: %s\n" "$1"

@@ -1,6 +1,11 @@
-Version 0.7 (unreleased)
+Version 0.8 (unreleased)
 -----------
 
+
+Version 0.7
+-----------
+
+- [Fea]		Be able to suppress locked modules (Thanks to https://github.com/fdellwing)
 
 
 Version 0.6

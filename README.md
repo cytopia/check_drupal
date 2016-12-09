@@ -8,6 +8,11 @@ Nagios drupal plugin to monitor the state of a drupal site and/or drupal multisi
 
 ---
 
+| [![Awesome-Nagios-Plugins](https://raw.githubusercontent.com/cytopia/awesome-nagios-plugins/master/doc/img/awesome-nagios.png)](https://github.com/cytopia/awesome-nagios-plugins) | Find more [awesome nagios plugins](https://github.com/cytopia/awesome-nagios-plugins) |
+|---|---|
+
+---
+
 * `check_drupal` on [Icinga Exchange](https://exchange.icinga.org/cytopia/check_drupal)
 * `check_drupal` on [Nagios Exchange](https://exchange.nagios.org/directory/Plugins/CMS-and-Blog-Software/Drupal/check-2Ddrupal/details)
 

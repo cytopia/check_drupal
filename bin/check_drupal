@@ -11,11 +11,11 @@
 
 # Some creds
 INFO_NAME="check_drupal"
-INFO_AUTHOR="Patrick Plocke <patrick@plocke.de>"
-INFO_GPGKEY="0x28BF179F"
-INFO_DATE="2016-11-22"
+INFO_AUTHOR="cytopia <cytopia@everythingcli.org>"
+INFO_GPGKEY="0x695128A2"
+INFO_DATE="2016-12-12"
 INFO_LICENSE="MIT"
-INFO_VERSION="0.7"
+INFO_VERSION="0.8"
 
 # Get the path
 export PATH="$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"

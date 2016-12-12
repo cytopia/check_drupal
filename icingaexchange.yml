@@ -10,7 +10,7 @@ releases:
   -
     name: 0.8
     description: "0.8 Release"
-    files:x
+    files:
       -
         name: check_drupal
         url: "file:///bin/check_drupal"

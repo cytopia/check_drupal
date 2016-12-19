@@ -692,13 +692,19 @@ while test -n "$1"; do
 			shift
 			DRUPAL_ROOT="$1"
 			;;
-		# ---- 1. Drupal name
+		# ---- 2. Drush config file
+		-c)
+			# Get next arg in list (Config file)
+			shift
+			DRUSH_CONFIG="$1"
+			;;
+		# ---- 3. Drupal name
 		-n)
 			# Get next arg in list (Name)
 			shift
 			DRUPAL_NAME="$1"
 			;;
-		# ---- 2. Security Updates
+		# ---- 4. Security Updates
 		-s)
 			# Get next arg in list (Severity <w|e>)
 			shift
@@ -707,7 +713,7 @@ while test -n "$1"; do
 				exit $EXIT_UNKNOWN
 			fi
 			;;
-		# ---- 3. System Updates
+		# ---- 5. System Updates
 		-u)
 			# Get next arg in list (Severity <w|e>)
 			shift
@@ -716,7 +722,7 @@ while test -n "$1"; do
 				exit $EXIT_UNKNOWN
 			fi
 			;;
-		# ---- 5. Core errors
+		# ---- 6. Core errors
 		-e)
 			# Get next arg in list (Severity <w|e>)
 			shift
@@ -725,7 +731,7 @@ while test -n "$1"; do
 				exit $EXIT_UNKNOWN
 			fi
 			;;
-		# ---- 6. Core warnings
+		# ---- 7. Core warnings
 		-w)
 			# Get next arg in list (Severity <w|e>)
 			shift
@@ -734,7 +740,7 @@ while test -n "$1"; do
 				exit $EXIT_UNKNOWN
 			fi
 			;;
-		# ---- 7. Missing DB updates
+		# ---- 8. Missing DB updates
 		-m)
 			# Get next arg in list (Severity <w|e>)
 			shift
@@ -743,13 +749,13 @@ while test -n "$1"; do
 				exit $EXIT_UNKNOWN
 			fi
 			;;
-		# ---- 8. Do we have an URI for a multisite?
+		# ---- 9. Do we have an URI for a multisite?
 		-i)
 			# Get next arg in list (URL)
 			shift
 			MULTISITE_URI="$1"
 			;;
-			# ---- 9. Do we log to file?
+			# ---- 10. Do we log to file?
 		-l)
 			# Get next arg in list (log file)
 			shift
@@ -793,6 +799,10 @@ fi
 if ! is_drupal_root "${DRUPAL_ROOT}" > /dev/null 2>&1; then
 	echo "[UNKNOWN] '${DRUPAL_ROOT}' is not a valid drupal root directory."
 	exit $EXIT_UNKNOWN
+fi
+
+if [ -n "$DRUSH_CONFIG" ]; then
+    DRUSH="${DRUSH} --config=${DRUSH_CONFIG}"
 fi
 
 # Are we logging?

@@ -7,9 +7,10 @@
 	"license": "MIT",
 	"authors": [
 		{
-			"name" : "Patrick Plocke",
+			"name" : "cytopia",
 			"homepage": "https://github.com/cytopia",
 			"role": "Developer"
 		}
-	]
+	],
+	"bin": ["bin/check_drupal"]
 }

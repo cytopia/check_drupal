@@ -2,23 +2,23 @@ name: check_drupal
 description: "file:///README.md"
 url: "https://github.com/cytopia/check_drupal"
 tags: CMS
-vendor: Linux
-target: Operating System
+vendor: cytopia
+target: Operating System,Website
 type: Plugin
 license: MIT
-releases: 
-  - 
-    name: 0.6
-    description: "0.6 Release"
-    files: 
-      - 
+releases:
+  -
+    name: 0.8
+    description: "0.8 Release"
+    files:
+      -
         name: check_drupal
         url: "file:///bin/check_drupal"
-        description: "Sixth release"
-        checksum: 016372cb304cbc9f1cbb823d4588f35e
-      - 
+        description: "Directly check a drupal CMS"
+        checksum: 06f9005e97f0526d2b570e0b4a88d6da
+      -
         name: check_drupal_log
         url: "file:///bin/check_drupal_log"
-        description: "Sixth release"
-        checksum: 9b458d366c36c025fce142126c1675d8
+        description: "Check the logfile created by check_drupal"
+        checksum: fcb4cd9c7eca94f0574edd62d057f7fc
 

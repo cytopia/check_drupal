@@ -248,7 +248,7 @@ name:    check_by_ssh_drupal
 command: $USER1$/check_by_ssh -H $HOSTADDRESS$ -t 60 -l "$USER17$" -C "$USER22$/check_drupal_log -f $ARG1$"
 ```
 #### Service definition
-In the above command definition there is only one arguments. This will point to the logfile created by `check_drupal`:
+In the above command definition there is only one argument. This will point to the logfile created by `check_drupal`:
 ```bash
 check command: ssh_drupal_cool-drupal-project
 $ARG1$:        /var/log/drupal_cool-project.log
@@ -327,13 +327,13 @@ object CheckCommand "check_drupal_log" {
 ```
 
 #### Service definition
-In the above command definition there is only one arguments. This will point to the logfile created by `check_drupal`:
+In the above command definition there is only one argument. This will point to the logfile created by `check_drupal`:
 
 ```bash
 apply Service for (logfile => config in host.vars.logfile) {
 	import "generic-service"
 
-	check_command = "drupal_updates"
+	check_command = "check_drupal_log"
 
 	vars += config
 }

@@ -56,6 +56,7 @@ I would recommend the second option as you do not check each drupal site every 5
 * Check for Drupal core warnings
 * Every check can specify its own nagios severity (Error or Warning)
 * Custom name for nagios short output
+* Be able to don't show updates that are locked via drush
 * Detailed information in nagios long output
 * Be able to successfully recognize valid Drupal6 or Drupal7 document root
 * Basic performance data fow: how many OKs, Errors, Warnings and Unknowns
@@ -71,7 +72,7 @@ This file can then be checked normaly via nagios by calling `check_drupal_log` i
 Multiple logfiles for multiple drupal site per server will be possible.
 
 ```shell
-Usage: check_drupal -d <drupal root> [-n <name>] [-s <w|e>] [-u <w|e>] [-e <w|e>] [-w <w|e>] [-m <w|e>] [-i <uri>] [-l <log file>]
+Usage: check_drupal -d <drupal root> [-n <name>] [-s <w|e>] [-u <w|e>] [-e <w|e>] [-w <w|e>] [-m <w|e>] [-i <uri>] [-l <log file>] [-r]
 OR     check_drupal --check
 OR     check_drupal --help
 OR     check_drupal --version
@@ -86,8 +87,6 @@ For each check you can specify the nagios severity (error or warning).
 
   -n <name>              [optional] Specify a name for the drupal instance to
                          appear on the nagios output. The default is 'Drupal'
-
-                         the 'drupal' folder. This parameter is required.
 
   -s <w|e>               [optional] Check for drupal core and module security
                          updates and return nagios error or warning.
@@ -135,6 +134,9 @@ For each check you can specify the nagios severity (error or warning).
                          Example:
                          check_drupal -d /var/www -s e -e e -w w -l /var/log/drupal.log
                          check_drupal_log -l /var/log/drupal.log
+
+  -r                     [optional] Filters all updates that are locked via drush.
+                         For general infos about locking run 'drush pm-updatestats -h'
 
   --check                Check for program requirements.
   --help                 Show this help
@@ -235,7 +237,7 @@ $ARG1$:        /var/www/cool-drupal-project/drupal/
 $ARG2$:        Cool Drupal Project
 $ARG3$:        -s e -u w -e e -w w -m e
 ```
-The above service defintion will check against security updates (with nagios error), against normal updates (with nagios warning), against core errors (with nagios error), against core warnings (with nagios warning) and finally against missed database migrations (with nagios error).
+The above service definition will check against security updates (with nagios error), against normal updates (with nagios warning), against core errors (with nagios error), against core warnings (with nagios warning) and finally against missed database migrations (with nagios error).
 
 ### 3.2 check_drupal_log
 
@@ -261,11 +263,104 @@ Setup multiple cronjobs with multiple logfiles if you have multiple drupal sites
 0 */6 * * * /path/to/check_drupal -d /var/www/cool-drupal-project/drupal/ -n "Cool Project" -s e -u w -e e -w w -m e -l /var/log/drupal_cool-project.log
 ```
 
-## 4. Performance data
+## 4. Icinga2 Configuration
+
+### 4.1 check_drupal
+
+#### Command definition
+Because icinga2 is should be running on every monitored server, there is no need for `check_by_ssh`.
+
+```bash
+object CheckCommand "check_drupal" {
+	import "plugin-check-command"
+
+	command = [ PluginDir + "/check_drupal" ]
+
+	arguments = {
+		"-d" = "$drupal_root$"
+		"-n" = "$name$"
+		"-s" = "$s$"
+		"-u" = "$u$"
+		"-e" = "$e$"
+		"-w" = "$w$"
+		"-m" = "$m$"
+	}
+}
+```
+
+#### Service definition
+The following shows an example service definition for one specific drupal site:
+
+```bash
+apply Service "check_cool-drupal-project" {
+	import "generic-service"
+
+	check_command = "check_drupal"
+
+	vars.drupal_root = "/var/www/cool-drupal-project/drupal/"
+	vars.name = "Cool Drupal Project"
+	vars.s = "e"
+	vars.u = "w"
+	vars.e = "e"
+	vars.w = "w"
+	vars.m = "e"
+
+	assign where host.name == NodeName
+}
+```
+
+The above service definition will check against security updates (with nagios error), against normal updates (with nagios warning), against core errors (with nagios error), against core warnings (with nagios warning) and finally against missed database migrations (with nagios error).
+
+### 4.2 check_drupal_log
+
+#### Command definition
+```bash
+object CheckCommand "check_drupal_log" {
+	import "plugin-check-command"
+
+	command = [ PluginDir + "/check_drupal_log" ]
+
+	arguments = {
+		"-f" = "$logfile$"
+	}
+}
+```
+
+#### Service definition
+In the above command definition there is only one arguments. This will point to the logfile created by `check_drupal`:
+
+```bash
+apply Service for (logfile => config in host.vars.logfile) {
+	import "generic-service"
+
+	check_command = "drupal_updates"
+
+	vars += config
+}
+```
+
+The above service definition will look for multiple "vars.logfile" in your `host.conf`:
+
+```bash
+vars.logfile["drupal name1"] = { logfile = "/var/log/check_drupal/name1.log" }
+vars.logfile["drupal name2"] = { logfile = "/var/log/check_drupal/name2.log" }
+vars.logfile["drupal name3"] = { logfile = "/var/log/check_drupal/name3.log" }
+```
+
+#### Cron setup
+For this recommended setup to work you need to setup a cronjob on the target machine (where the drupal site is installed) that is run every 6 hours, every day or whatever you want.
+
+Setup multiple cronjobs with multiple logfiles if you have multiple drupal sites on this machine that you want to monitor.
+
+```cron
+0 */6 * * * /path/to/check_drupal -d /var/www/cool-drupal-project/drupal/ -n "Cool Project" -s e -u w -e e -w w -m e -l /var/log/drupal_cool-project.log
+```
+
+## 5. Performance data
 
 Screenshots taken from an [Icinga](https://www.icinga.org/) setup
 
-### 4.1 Specific data
+### 5.1 Specific data
 The following performance data gives detailed information about specific errors/warnings that have occured
 ![PerfData](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/01_sec-updates.png)
 ![PerfData](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/02_updates.png)
@@ -273,7 +368,7 @@ The following performance data gives detailed information about specific errors/
 ![PerfData](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/04_core-warnings.png)
 ![PerfData](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/05_db-migrations.png)
 
-### 4.2 General data
+### 5.2 General data
 The following performance data gives a general overview about how many OK's, Errors, Warnings and Unknowns have happened over time. This way you can also see how quickly the reaction time has been to occured problems.
 
 **Best practise:**
@@ -287,10 +382,10 @@ The following performance data gives a general overview about how many OK's, Err
 ![PerfData](https://raw.githubusercontent.com/cytopia/check_drupal/master/doc/img/09_unknowns.png)
 
 
-## 5. License
+## 6. License
 [![license](https://poser.pugx.org/cytopia/check_drupal/license)](http://opensource.org/licenses/mit)
 
-## 6. Awesome
+## 7. Awesome
 
 Added by the following [![Awesome](https://cdn.rawgit.com/sindresorhus/awesome/d7305f38d29fed78fa85652e3a63e154dd8e8829/media/badge.svg)](https://github.com/sindresorhus/awesome) lists:
 

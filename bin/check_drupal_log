@@ -26,6 +26,8 @@ EXIT_OK=0
 #EXIT_ERR=2
 EXIT_UNKNOWN=3
 
+# Need special behavior when reading from stdin
+READING_STDIN=
 
 
 ################################################################################
@@ -138,28 +140,60 @@ if [ -z "$LOGFILE" ]; then
 	exit $EXIT_UNKNOWN
 fi
 
-# Check if logfile exists
-if [ ! -f "$LOGFILE" ]; then
-	echo "[UNKNOWN] Logfile does not exist: ${LOGFILE}."
-	exit $EXIT_UNKNOWN
-fi
+# Check if logfile is stdin
+if [ "$LOGFILE" = "-" ]; then
+	READING_STDIN=1
 
-# Check if logfile is readable
-if [ ! -r "$LOGFILE" ]; then
-	echo "[UNKNOWN] Logfile is not readable: ${LOGFILE}."
-	exit $EXIT_UNKNOWN
+	# Generate random tmpfile
+	if ! command -v mktemp >/dev/null 2>&1; then
+		_rand="$(LC_ALL=C tr -dc 'a-z0-9' < /dev/urandom | head -c 32)"
+		LOGFILE="/tmp/.drushrc.${_rand}"
+		touch "${LOGFILE}"
+		_ret=$?
+	else
+		LOGFILE="$(mktemp)"
+		_ret=$?
+	fi
+
+	# Quit on error immediately
+	if [ ${_ret} -ne 0 ]; then
+		echo "[UNKNOWN] Can't create temporary file"
+		return $EXIT_UNKNOWN
+	fi
+
+	cat > "$LOGFILE"
+else
+	# Check if logfile exists
+	if [ ! -f "$LOGFILE" ]; then
+		echo "[UNKNOWN] Logfile does not exist: ${LOGFILE}."
+		exit $EXIT_UNKNOWN
+	fi
+
+	# Check if logfile is readable
+	if [ ! -r "$LOGFILE" ]; then
+		echo "[UNKNOWN] Logfile is not readable: ${LOGFILE}."
+		exit $EXIT_UNKNOWN
+	fi
 fi
 
 # Check if last line contains error code
 NAGIOS_EXIT="$(tail -n1 "$LOGFILE")"
 if ! isint "${NAGIOS_EXIT}" > /dev/null 2>&1 ; then
+	if [ -n "$READING_STDIN" ]; then
+		rm -f "$LOGFILE"
+	fi
 	echo "[UNKNOWN] Logfile seems invalid: Does not contain exit code on last line."
 	exit $EXIT_UNKNOWN
 fi
 
 # Check if exit code is within bounds
 if [ "$NAGIOS_EXIT" != "0" ] && [ "$NAGIOS_EXIT" != "1" ] && [ "$NAGIOS_EXIT" != "2" ]  && [ "$NAGIOS_EXIT" != "3" ]; then
-	echo "[UNKNOWN] Exit code not within bounds in $LOGFILE"
+	if [ -n "$READING_STDIN" ]; then
+		rm -f "$LOGFILE"
+		echo "[UNKNOWN] Exit code not within bounds on stdin"
+	else
+		echo "[UNKNOWN] Exit code not within bounds in $LOGFILE"
+	fi
 	exit $EXIT_UNKNOWN
 fi
 
@@ -169,6 +203,10 @@ NUM_LINES="$(wc -l < "$LOGFILE")"
 NUM_LINES="$((NUM_LINES-1))" # Last line is exit code
 
 OUTPUT="$(head -n${NUM_LINES} "$LOGFILE")"
+
+if [ -n "$READING_STDIN" ]; then
+	rm -f "$LOGFILE"
+fi
 
 echo "$OUTPUT"
 exit "$NAGIOS_EXIT"

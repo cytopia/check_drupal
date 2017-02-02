@@ -64,6 +64,7 @@ print_version() {
 # @return integer 0
 print_usage() {
 	printf "Usage: %s -f <logfile>\n" "${INFO_NAME}"
+	printf "OR     %s -f -\n" "${INFO_NAME}"
 	printf "OR     %s --help\n" "${INFO_NAME}"
 	printf "OR     %s --version\n\n" "${INFO_NAME}"
 	return 0
@@ -80,7 +81,8 @@ print_help() {
 	# Show help and details
 	printf "Nagios plugin that will parse the logfile created by 'check_drupal'.\n\n"
 
-	printf "  -f <logfile>           The full path to logfile created by 'check_drupal'\n\n"
+	printf "  -f <logfile>           The full path to logfile created by 'check_drupal'\n"
+	printf "                         Specify '-' to read from standard input\n\n"
 
 	printf "  --help                 Show this help\n"
 	printf "  --version              Show version information.\n"

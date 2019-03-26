@@ -136,7 +136,7 @@ For each check you can specify the nagios severity (error or warning).
                          check_drupal_log -l /var/log/drupal.log
 
   -r                     [optional] Filters all updates that are locked via drush.
-                         For general infos about locking run 'drush pm-updatestats -h'
+                         For general infos about locking run 'drush pm-updatestatus -h'
 
   --check                Check for program requirements.
   --help                 Show this help
@@ -268,7 +268,7 @@ Setup multiple cronjobs with multiple logfiles if you have multiple drupal sites
 ### 4.1 check_drupal
 
 #### Command definition
-Because icinga2 is should be running on every monitored server, there is no need for `check_by_ssh`.
+Because icinga2 should be running on every monitored server, there is no need for `check_by_ssh`.
 
 ```bash
 object CheckCommand "check_drupal" {

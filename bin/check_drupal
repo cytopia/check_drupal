@@ -600,7 +600,7 @@ print_help() {
 	printf "                         check_drupal_log -l /var/log/drupal.log\n\n"
 
 	printf "  -r                     [optional] Filters all updates that are locked via drush.\n"
-	printf "                         For general infos about locking run 'drush pm-updatestats -h'\n\n"
+	printf "                         For general infos about locking run 'drush pm-updatestatus -h'\n\n"
 
 	printf "  --check                Check for program requirements.\n"
 	printf "  --help                 Show this help\n"

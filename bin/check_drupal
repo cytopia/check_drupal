@@ -201,7 +201,7 @@ is_drupal_root() {
 	fi
 
 	# Use drush to test root
-	if ! drush -r "${1}" status | grep 'Drupal root' 1>/dev/null; then
+	if ! drush -r "${1}" --uri="${2}" status | grep 'Drupal root' 1>/dev/null; then
 		return 1
 	fi
 	return 0
@@ -790,7 +790,7 @@ if [ -z "$DRUPAL_ROOT" ]; then
 fi
 
 # Check if it is a valid drupal doc root
-if ! is_drupal_root "${DRUPAL_ROOT}" > /dev/null 2>&1; then
+if ! is_drupal_root "${DRUPAL_ROOT}" "${MULTISITE_URI}" > /dev/null 2>&1; then
 	echo "[UNKNOWN] '${DRUPAL_ROOT}' is not a valid drupal root directory."
 	exit $EXIT_UNKNOWN
 fi

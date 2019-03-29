@@ -13,9 +13,9 @@
 INFO_NAME="check_drupal"
 INFO_AUTHOR="cytopia <cytopia@everythingcli.org>"
 INFO_GPGKEY="0x695128A2"
-INFO_DATE="2016-12-12"
+INFO_DATE="2019-03-19"
 INFO_LICENSE="MIT"
-INFO_VERSION="0.8"
+INFO_VERSION="0.9"
 
 # Get the path
 export PATH="$PATH:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
@@ -282,19 +282,21 @@ check_security_updates() {
 	# No URI specified (single site)
 	if [ -z "${_multisite_uri}" ]; then
 		_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" pm-updatestatus --nocolor --security-only --format=csv --fields='name,installed version,proposed version,message' 2> /dev/null)"
+		_ret=$?
 	else
 		_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" --uri="${_multisite_uri}" pm-updatestatus --nocolor --security-only --format=csv --fields='name,installed version,proposed version,message' 2> /dev/null)"
+		_ret=$?
 	fi
 
 	# Error might have multiple causes...
 	# Drupal database not connected?
 	# Drupal root wrong?
-	if [ $? -ne 0 ]; then
+	if [ ${_ret} -ne 0 ]; then
 		return $EXIT_UNKNOWN
 	fi
 
 	# Remove via drush locked updates, keep the rest
-        if [ "$LOCK" = "1" ]; then
+    if [ "$LOCK" = "1" ]; then
 		_updates="$(echo "${_updates}" | sed '/Locked\ via\ drush/d')"
 	fi
 
@@ -325,14 +327,16 @@ check_system_updates() {
 	# No URI specified (single site)
 	if [ -z "${_multisite_uri}" ]; then
 		_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" pm-updatestatus --nocolor --format=csv --fields='name,installed version,proposed version,message' 2> /dev/null)"
+		_ret=$?
 	else
 		_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" --uri="${_multisite_uri}" pm-updatestatus --nocolor --format=csv --fields='name,installed version,proposed version,message' 2> /dev/null)"
+		_ret=$?
 	fi
 
 	# Error might have multiple causes...
 	# Drupal database not connected?
 	# Drupal root wrong?
-	if [ $? -ne 0 ]; then
+	if [ ${_ret} -ne 0 ]; then
 		return $EXIT_UNKNOWN
 	fi
 
@@ -371,14 +375,16 @@ check_core_errors() {
 	# No URI specified (single site)
 	if [ -z "${_multisite_uri}" ]; then
 		_core_errors="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" core-requirements --severity=2 --field-labels=0 --format=table --fields='severity,title' 2>/dev/null)"
+		_ret=$?
 	else
 		_core_errors="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" --uri="${_multisite_uri}" core-requirements --severity=2 --field-labels=0 --format=table --fields='severity,title' 2>/dev/null)"
+		_ret=$?
 	fi
 
 	# Error might have multiple causes...
 	# Drupal database not connected?
 	# Drupal root wrong?
-	if [ $? -ne 0 ]; then
+	if [ ${_ret} -ne 0 ]; then
 		return $EXIT_UNKNOWN
 	fi
 
@@ -417,14 +423,16 @@ check_core_warnings() {
 	# No URI specified (single site)
 	if [ -z "${_multisite_uri}" ]; then
 		_core_warnings="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" core-requirements --severity=1 --no-field-labels --format=table --fields='severity,title' 2>/dev/null)"
+		_ret=$?
 	else
 		_core_warnings="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" --uri="${_multisite_uri}" core-requirements --severity=1 --no-field-labels --format=table --fields='severity,title' 2>/dev/null)"
+		_ret=$?
 	fi
 
 	# Error might have multiple causes...
 	# Drupal database not connected?
 	# Drupal root wrong?
-	if [ $? -ne 0 ]; then
+	if [ ${_ret} -ne 0 ]; then
 		return $EXIT_UNKNOWN
 	fi
 
@@ -465,14 +473,16 @@ check_db_updates() {
 	# No URI specified (single site)
 	if [ -z "${_multisite_uri}" ]; then
 		_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" pm-updatestatus --nocolor --no-field-labels --format=csv --fields='module,update_id' 2> /dev/null)"
+		_ret=$?
 	else
 		_updates="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" --uri="${_multisite_uri}" pm-updatestatus --nocolor --no-field-labels --format=csv --fields='module,update_id' 2> /dev/null)"
+		_ret=$?
 	fi
 
 	# Error might have multiple causes...
 	# Drupal database not connected?
 	# Drupal root wrong?
-	if [ $? -ne 0 ]; then
+	if [ ${_ret} -ne 0 ]; then
 		return $EXIT_UNKNOWN
 	fi
 
@@ -769,8 +779,7 @@ while test -n "$1"; do
 done
 
 # Use a drushrc.php file to set the language to english
-DRUSHRC="$(write_drushrc)"
-if [ $? -ne 0 ]; then
+if ! DRUSHRC="$(write_drushrc)"; then
 	printf "[UNKNOWN] Unable to create tmpfile\n"
 	exit $EXIT_UNKNOWN
 fi

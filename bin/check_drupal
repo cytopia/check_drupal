@@ -38,7 +38,7 @@ fi
 #PHP_OPTS="-d intl.default_locale='en_US'"
 
 # Drush executeable
-DRUSH="$(which drush 2>/dev/null)"
+DRUSH="$(command -v drush 2>/dev/null)"
 
 
 
@@ -522,7 +522,7 @@ print_version() {
 # @output string  The requirements.
 # @return integer 0 on success, 2 on fail
 check() {
-	if command -v {$DRUSH} > /dev/null 2>&1; then
+	if command -v "{$DRUSH}" > /dev/null 2>&1; then
 		echo "[OK] drush found"
 		return "$EXIT_ERR"
 	else
@@ -651,7 +651,7 @@ fi
 ############################################################
 
 # Do we have 'drush'?
-if ! command -v ${DRUSH} > /dev/null 2>&1 ; then
+if ! command -v "${DRUSH}" > /dev/null 2>&1 ; then
 	printf "[UNKNOWN] 'drush' not found.\n"
 	exit $EXIT_UNKNOWN
 fi
@@ -773,7 +773,6 @@ while test -n "$1"; do
 			LOCK="1"
 			;;
 		-v)
-			VENDOR_DRUSH="1"
 			VENDOR_DRUSH_PATH="../vendor/drush/drush/drush"
 			DRUSH="${DRUPAL_ROOT}/${VENDOR_DRUSH_PATH}"
 			;;

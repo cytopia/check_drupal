@@ -522,7 +522,7 @@ print_version() {
 # @output string  The requirements.
 # @return integer 0 on success, 2 on fail
 check() {
-	if command -v "{$DRUSH}" > /dev/null 2>&1; then
+	if command -v "$DRUSH" > /dev/null 2>&1; then
 		echo "[OK] drush found"
 		return "$EXIT_ERR"
 	else
@@ -616,6 +616,7 @@ print_help() {
 	printf "                         default for <drupal root>/../vendor/drush/drush/drush '\n\n"
 
 	printf "  --check                Check for program requirements.\n"
+	printf "  --check_vendor         Check for program requirements, when using vendor drush. The parameter -d <drupal root>  is required.  \n" 
 	printf "  --help                 Show this help\n"
 	printf "  --version              Show version information.\n"
 	return 0
@@ -636,6 +637,23 @@ if [ "${1}" = "--check" ]; then
 	check
 	exit $EXIT_OK
 fi
+if [ "${1}" = "--check_vendor" ]; then
+    while test -n "$1"; do
+
+		case "$1" in
+				 -d)
+                      # Get next arg in list (Path)
+                      shift
+                      DRUPAL_ROOT="$1"
+                      ;;
+		esac
+		shift
+	done
+	VENDOR_DRUSH_PATH="../vendor/drush/drush/drush"
+    DRUSH="${DRUPAL_ROOT}/${VENDOR_DRUSH_PATH}"
+	check
+	exit $EXIT_OK
+fi
 if [ "${1}" = "--help" ]; then
 	print_help
 	exit $EXIT_OK
@@ -645,16 +663,6 @@ if [ "${1}" = "--version" ]; then
 	exit $EXIT_OK
 fi
 
-
-############################################################
-# Check requirements
-############################################################
-
-# Do we have 'drush'?
-if ! command -v "${DRUSH}" > /dev/null 2>&1 ; then
-	printf "[UNKNOWN] 'drush' not found.\n"
-	exit $EXIT_UNKNOWN
-fi
 
 
 ############################################################
@@ -784,6 +792,18 @@ while test -n "$1"; do
 	esac
 	shift
 done
+
+
+############################################################
+# Check requirements
+############################################################
+
+# Do we have 'drush'?
+if ! command -v "${DRUSH}" > /dev/null 2>&1 ; then
+	printf "[UNKNOWN] 'drush' not found.\n"
+	exit $EXIT_UNKNOWN
+fi
+
 
 ############################################################
 # Validate arguments
@@ -1115,4 +1135,3 @@ fi
 
 
 # " vim: set ts=4:
-

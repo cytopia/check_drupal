@@ -38,7 +38,7 @@ fi
 #PHP_OPTS="-d intl.default_locale='en_US'"
 
 # Drush executeable
-DRUSH="$(which drush 2>/dev/null)"
+DRUSH="$(command -v drush 2>/dev/null)"
 
 
 
@@ -201,7 +201,7 @@ is_drupal_root() {
 	fi
 
 	# Use drush to test root
-	if ! drush -r "${1}" --uri="${2}" status | grep 'Drupal root' 1>/dev/null; then
+	if ! "${DRUSH}" -r "${1}" --uri="${2}" status | grep 'Drupal root' 1>/dev/null; then
 		return 1
 	fi
 	return 0
@@ -522,7 +522,7 @@ print_version() {
 # @output string  The requirements.
 # @return integer 0 on success, 2 on fail
 check() {
-	if command -v drush > /dev/null 2>&1; then
+	if command -v "$DRUSH" > /dev/null 2>&1; then
 		echo "[OK] drush found"
 		return "$EXIT_ERR"
 	else
@@ -535,7 +535,7 @@ check() {
 # @output string  The usage screen.
 # @return integer 0
 print_usage() {
-	printf "Usage: %s -d <drupal root> [-n <name>] [-s <w|e>] [-u <w|e>] [-e <w|e>] [-w <w|e>] [-m <w|e>] [-i <uri>] [-l <log file>] [-r]\n" "${INFO_NAME}"
+	printf "Usage: %s -d <drupal root> [-n <name>] [-s <w|e>] [-u <w|e>] [-e <w|e>] [-w <w|e>] [-m <w|e>] [-i <uri>] [-l <log file>] [-r]\n  [-v]\n" "${INFO_NAME}"
 	printf "OR     %s --check\n" "${INFO_NAME}"
 	printf "OR     %s --help\n" "${INFO_NAME}"
 	printf "OR     %s --version\n\n" "${INFO_NAME}"
@@ -612,7 +612,11 @@ print_help() {
 	printf "  -r                     [optional] Filters all updates that are locked via drush.\n"
 	printf "                         For general infos about locking run 'drush pm-updatestatus -h'\n\n"
 
+	printf "  -v                     [optional] Use Vendor Drush instead of global drush.\n"
+	printf "                         default for <drupal root>/../vendor/drush/drush/drush '\n\n"
+
 	printf "  --check                Check for program requirements.\n"
+	printf "  --check_vendor         Check for program requirements, when using vendor drush. The parameter -d <drupal root>  is required.  \n" 
 	printf "  --help                 Show this help\n"
 	printf "  --version              Show version information.\n"
 	return 0
@@ -633,6 +637,23 @@ if [ "${1}" = "--check" ]; then
 	check
 	exit $EXIT_OK
 fi
+if [ "${1}" = "--check_vendor" ]; then
+    while test -n "$1"; do
+
+		case "$1" in
+				 -d)
+                      # Get next arg in list (Path)
+                      shift
+                      DRUPAL_ROOT="$1"
+                      ;;
+		esac
+		shift
+	done
+	VENDOR_DRUSH_PATH="../vendor/drush/drush/drush"
+	DRUSH="${DRUPAL_ROOT}/${VENDOR_DRUSH_PATH}"
+	check
+	exit $EXIT_OK
+fi
 if [ "${1}" = "--help" ]; then
 	print_help
 	exit $EXIT_OK
@@ -642,16 +663,6 @@ if [ "${1}" = "--version" ]; then
 	exit $EXIT_OK
 fi
 
-
-############################################################
-# Check requirements
-############################################################
-
-# Do we have 'drush'?
-if ! command -v drush > /dev/null 2>&1 ; then
-	printf "[UNKNOWN] 'drush' not found.\n"
-	exit $EXIT_UNKNOWN
-fi
 
 
 ############################################################
@@ -769,6 +780,10 @@ while test -n "$1"; do
 		-r)
 			LOCK="1"
 			;;
+		-v)
+			VENDOR_DRUSH_PATH="../vendor/drush/drush/drush"
+			DRUSH="${DRUPAL_ROOT}/${VENDOR_DRUSH_PATH}"
+			;;
 		*)
 			printf "Unknown argument: %s\n" "$1"
 			print_usage
@@ -778,13 +793,16 @@ while test -n "$1"; do
 	shift
 done
 
-# Use a drushrc.php file to set the language to english
-if ! DRUSHRC="$(write_drushrc)"; then
-	printf "[UNKNOWN] Unable to create tmpfile\n"
+
+############################################################
+# Check requirements
+############################################################
+
+# Do we have 'drush'?
+if ! command -v "${DRUSH}" > /dev/null 2>&1 ; then
+	printf "[UNKNOWN] 'drush' not found.\n"
 	exit $EXIT_UNKNOWN
 fi
-
-DRUSH="${DRUSH} --config=${DRUSHRC}"
 
 
 ############################################################
@@ -822,6 +840,16 @@ if [ -n "$LOGGING" ]; then
 		fi
 	fi
 fi
+
+
+# Use a drushrc.php file to set the language to english
+if ! DRUSHRC="$(write_drushrc)"; then
+	printf "[UNKNOWN] Unable to create tmpfile\n"
+	exit $EXIT_UNKNOWN
+fi
+
+DRUSH="${DRUSH} --config=${DRUSHRC}"
+
 
 
 ############################################################
@@ -1107,4 +1135,3 @@ fi
 
 
 # " vim: set ts=4:
-

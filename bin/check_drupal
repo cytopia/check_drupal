@@ -650,7 +650,7 @@ if [ "${1}" = "--check_vendor" ]; then
 		shift
 	done
 	VENDOR_DRUSH_PATH="../vendor/drush/drush/drush"
-    DRUSH="${DRUPAL_ROOT}/${VENDOR_DRUSH_PATH}"
+	DRUSH="${DRUPAL_ROOT}/${VENDOR_DRUSH_PATH}"
 	check
 	exit $EXIT_OK
 fi

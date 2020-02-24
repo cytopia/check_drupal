@@ -534,12 +534,12 @@ check_cron() {
 # get difference
 # if difference greater than something, warning, if greater than something else, critical
 # otherwise ok
-	now=`date "+%s"`
-	secondssince=`expr $now - $_cron`
-	minutessince=`expr $secondssince / 60`
+	now=$(date "+%s")
+	secondssince=$(("$now" - "$_cron"))
+	minutessince=$(("$secondssince" / 60))
 	
-	if [ $minutessince -gt 480 ]; then 
-		echo "Cron last run was " + $minutessince + " minutes ago"
+	if [ "$minutessince" -gt 480 ]; then 
+		echo "Cron last run was " + "$minutessince" + " minutes ago"
 		return $EXIT_ERR
         fi
         return $EXIT_OK

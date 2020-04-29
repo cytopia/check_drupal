@@ -502,7 +502,7 @@ check_db_updates() {
 	return $EXIT_OK
 }
 
-# Check when the Drupal cron system was last invoked.
+# Check when Drupal cron was last run successfully
 #
 # @param  string  Path to Drupal root.
 # @param  string  Drupal multisite URI

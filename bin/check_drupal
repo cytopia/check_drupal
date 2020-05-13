@@ -561,10 +561,10 @@ check_watchdog() {
         # read watchdog logs
         # No URI specified (single site)
         if [ -z "${_multisite_uri}" ]; then
-                _watchdog_="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" watchdog-show --severity=0 --severity=1 --severity=2 --no-field-labels 2>/dev/null)"
+                _watchdog=$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" watchdog-show --severity=0 --severity=1 --severity=2 --format=csv --no-field-labels 2>&1)
                 _ret=$?
         else
-                _watchdog="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" --uri="${_multisite_uri}" watchdog-show --severity=0 --severity=1 --severity=2 --no-field-labels 2>/dev/null)"
+                _watchdog=$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" --uri="${_multisite_uri}" watchdog-show --severity=0 --severity=1 --severity=2 --format=csv --no-field-labels 2>&1)
                 _ret=$?
         fi
 
@@ -575,7 +575,8 @@ check_watchdog() {
                 return $EXIT_UNKNOWN
         fi
 
-	if [(echo ${_watchdog} | grep "No log messages available" | wc -l) -eq 1]; then
+		_watchdog_messages=$(echo "${_watchdog}" | grep "No log messages available" | wc -l )
+	if [ "$_watchdog_messages" -eq 1 ]; then
 		echo "[OK] No Watchdog messages of severity CRITICAL or higher"
 		return $EXIT_OK
 	else

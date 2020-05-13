@@ -502,6 +502,88 @@ check_db_updates() {
 	return $EXIT_OK
 }
 
+# Check when Drupal cron was last run successfully
+#
+# @param  string  Path to Drupal root.
+# @param  string  Drupal multisite URI
+# @output string  Cron last run time.
+# @return integer Nagios exit code.
+check_cron() {
+
+        _drupal_root="${1}"
+        _multisite_uri="${2}"
+
+        # read cron_last
+        # No URI specified (single site)
+        if [ -z "${_multisite_uri}" ]; then 
+                _cron="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" vget --exact cron_last --nocolor --no-field-labels  2> /dev/null)"
+                _ret=$?
+        else 
+                _cron="$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" --uri="${_multisite_uri}" vget --exact cron_last --nocolor --no-field-labels 2> /dev/null)"
+                _ret=$?
+        fi
+
+        # Error might have multiple causes...
+        # Drupal database not connected?
+        # Drupal root wrong?
+        if [ ${_ret} -ne 0 ]; then 
+                return $EXIT_UNKNOWN
+        fi
+
+# get current time in unix seconds
+# get difference
+# if difference greater than something, warning, if greater than something else, critical
+# otherwise ok
+	now=$(date "+%s")
+	secondssince=$(($now - $_cron))
+	minutessince=$(($secondssince / 60))
+	
+	if [ "$minutessince" -gt 480 ]; then 
+		echo "Cron did not run within last 480 minutes"
+		return $EXIT_ERR
+        fi
+        return $EXIT_OK
+
+
+}
+
+# Check Drupal Watchdog logs for messages of severity CRITICAL or higher.
+#
+# @param  string  Path to Drupal root.
+# @param  string  Drupal multisite URI
+# @output string  Drupal Watchdog messages.
+# @return integer Nagios exit code.
+check_watchdog() {
+
+        _drupal_root="${1}"
+        _multisite_uri="${2}"
+
+        # read watchdog logs
+        # No URI specified (single site)
+        if [ -z "${_multisite_uri}" ]; then
+                _watchdog=$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" watchdog-show --severity=0 --severity=1 --severity=2 --format=csv --no-field-labels 2>&1)
+                _ret=$?
+        else
+                _watchdog=$(LC_MESSAGES=${LOCALE} ${DRUSH} --root="${_drupal_root}" --uri="${_multisite_uri}" watchdog-show --severity=0 --severity=1 --severity=2 --format=csv --no-field-labels 2>&1)
+                _ret=$?
+        fi
+
+        # Error might have multiple causes...
+        # Drupal database not connected?
+        # Drupal root wrong?
+        if [ ${_ret} -ne 0 ]; then
+                return $EXIT_UNKNOWN
+        fi
+
+		_watchdog_messages=$(echo "${_watchdog}" | grep "No log messages available" | wc -l )
+	if [ "$_watchdog_messages" -eq 1 ]; then
+		echo "[OK] No Watchdog messages of severity CRITICAL or higher"
+		return $EXIT_OK
+	else
+		echo "${_watchdog}"
+		return $EXIT_ERR
+	fi
+}
 
 ############################################################
 # Program Functions
@@ -670,6 +752,8 @@ MSG_SYSTEM_UPDATE=""
 MSG_CORE_ERROR=""
 MSG_CORE_WARNING=""
 MSG_DB_UPDATE=""
+MSG_CRON=""
+MSG_WATCHDOG=""
 
 # Info for normal Status message if there is an error/warning
 CNT_SECURITY_UPDATE_ERROR="0"
@@ -677,6 +761,8 @@ CNT_SYSTEM_UPDATE_ERROR="0"
 CNT_CORE_ERR_ERROR="0"
 CNT_CORE_WARN_ERROR="0"
 CNT_DB_UPDATE_ERROR="0"
+CNT_CRON_ERROR="0"
+CNT_WATCHDOG_ERROR="0"
 
 # Count warnings and errors for performance data
 CNT_ALL=0
@@ -753,19 +839,37 @@ while test -n "$1"; do
 				exit $EXIT_UNKNOWN
 			fi
 			;;
-		# ---- 8. Do we have an URI for a multisite?
+                # ---- 8. Cron
+                -c)  
+                        # Get next arg in list (Severity <w|e>)
+                        shift
+                        if ! CHECK_C="$(get_severity "$1")" > /dev/null 2>&1; then 
+                                echo "Invalid value \"$1\" for option \"-c\"."
+                                exit $EXIT_UNKNOWN
+                        fi   
+                        ;;  
+                # ---- 9. Watchdog Logs
+                -g)
+                        # Get next arg in list (Severity <w|e>)
+                        shift
+                        if ! CHECK_G="$(get_severity "$1")" > /dev/null 2>&1; then
+                                echo "Invalid value \"$1\" for option \"-g\"."
+                                exit $EXIT_UNKNOWN
+                        fi
+                        ;;
+		# ---- 9. Do we have an URI for a multisite?
 		-i)
 			# Get next arg in list (URL)
 			shift
 			MULTISITE_URI="$1"
 			;;
-			# ---- 9. Do we log to file?
+			# ---- 10. Do we log to file?
 		-l)
 			# Get next arg in list (log file)
 			shift
 			LOGGING="$1"
 			;;
-			# ---- 10. Do we skip locked updates?
+			# ---- 11. Do we skip locked updates?
 		-r)
 			LOCK="1"
 			;;
@@ -1003,6 +1107,74 @@ if [ -n "$CHECK_M" ]; then
 
 fi
 
+#### 6. Check for last time cron ran
+if [ -n "$CHECK_C" ]; then
+
+        SEVERITY="$CHECK_C"
+
+        # Execute Command
+        MSG_CRON="$(check_cron "${DRUPAL_ROOT}" "${MULTISITE_URI}")"
+        TMP_EXIT="$?"
+
+        # Merge exit codes
+        if [ "$TMP_EXIT" != "0" ]; then
+                # Count lines as number of issues
+                CNT_CRON_ERROR="$(echo "${MSG_CRON}" | wc -l | xargs)"
+
+                if [ "$SEVERITY" = "$EXIT_ERR" ]; then
+                        CNT_ERROR=$((CNT_ERROR+1))
+                        MSG_CRON="$(prepend_line "${MSG_CRON}" "[CRITICAL] ")"
+                        MSG_CRON="==== CRON ====\n${MSG_CRON}"
+                        NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
+                else
+                        CNT_WARNING=$((CNT_WARNING+1))
+                        MSG_CRON="$(prepend_line "${MSG_CRON}" "[WARNING] ")"
+                        MSG_CRON="==== CRON ====\n${MSG_CRON}"
+                        NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
+                fi
+        else
+                CNT_OK=$((CNT_OK+1))
+                MSG_CRON="==== CRON ====\n[OK] Cron ok"
+                NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
+        fi
+        CNT_ALL=$((CNT_ALL+1))
+
+fi
+
+
+#### 7. Check Drupal Watchdog logs for messages of severity CRITICAL or higher
+if [ -n "$CHECK_G" ]; then
+
+        SEVERITY="$CHECK_G"
+
+        # Execute Command
+        MSG_WATCHDOG="$(check_watchdog "${DRUPAL_ROOT}" "${MULTISITE_URI}")"
+        TMP_EXIT="$?"
+
+        # Merge exit codes
+        if [ "$TMP_EXIT" != "0" ]; then
+                # Count lines as number of issues
+                CNT_WATCHDOG_ERROR="$(echo "${MSG_WATCHDOG}" | wc -l | xargs)"
+
+                if [ "$SEVERITY" = "$EXIT_ERR" ]; then
+                        CNT_ERROR=$((CNT_ERROR+1))
+                        MSG_WATCHDOG="$(prepend_line "${MSG_WATCHDOG}" "[CRITICAL] ")"
+                        MSG_WATCHDOG="==== WATCHDOG ====\n${MSG_WATCHDOG}"
+                        NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "2")"
+                else
+                        CNT_WARNING=$((CNT_WARNING+1))
+                        MSG_WATCHDOG="$(prepend_line "${MSG_WATCHDOG}" "[WARNING] ")"
+                        MSG_WATCHDOG="==== WATCHDOG ====\n${MSG_WATCHDOG}"
+                        NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "1")"
+                fi
+        else
+                CNT_OK=$((CNT_OK+1))
+                MSG_WATCHDOG="==== WATCHDOG ====\n[OK] WATCHDOG ok"
+                NAGIOS_EXIT="$(merge_exit_codes "$NAGIOS_EXIT" "0")"
+        fi
+        CNT_ALL=$((CNT_ALL+1))
+
+fi
 
 
 ############################################################
@@ -1055,6 +1227,20 @@ if [ "$CNT_DB_UPDATE_ERROR" != "0" ]; then
 		INFO="$(merge_text "${INFO}" "${CNT_DB_UPDATE_ERROR} DB migrations" ", ")"
 	fi
 fi
+if [ "$CNT_CRON_ERROR" != "0" ]; then
+        if [ "$CNT_CRON_ERROR" = "1" ]; then
+                INFO="$(merge_text "${INFO}" "Cron warning" ", ")"
+        else
+                INFO="$(merge_text "${INFO}" "${CNT_CRON_ERROR} Cron warnings" ", ")"
+        fi
+fi
+if [ "$CNT_WATCHDOG_ERROR" != "0" ]; then
+        if [ "$CNT_WATCHDOG_ERROR" = "1" ]; then
+                INFO="$(merge_text "${INFO}" "Watchdog logs" ", ")"
+        else
+                INFO="$(merge_text "${INFO}" "${CNT_WATCHDOG_ERROR} Watchdog logs" ", ")"
+        fi
+fi
 
 #### Short output (std status)
 OUTPUT=""
@@ -1078,6 +1264,9 @@ PERF="$(printf "%s'Updates'=%d;;;; "             "${PERF}" "${CNT_SYSTEM_UPDATE_
 PERF="$(printf "%s'Core Errors'=%d;;;; "         "${PERF}" "${CNT_CORE_ERR_ERROR}")"
 PERF="$(printf "%s'Core Warnings'=%d;;;; "       "${PERF}" "${CNT_CORE_WARN_ERROR}")"
 PERF="$(printf "%s'Database Migrations'=%d;;;; " "${PERF}" "${CNT_DB_UPDATE_ERROR}")"
+PERF="$(printf "%s'CRON'=%d;;;; " 		 "${PERF}" "${CNT_CRON_ERROR}")"
+PERF="$(printf "%s'Watchdog Logs'=%d;;;; "                "${PERF}" "${CNT_WATCHDOG_ERROR}")"
+
 
 PERF="$(printf "%s'OK'=%d;;;0;%d "        "${PERF}" "${CNT_OK}"      "${CNT_ALL}")"
 PERF="$(printf "%s'Errors'=%d;1;1;0;%d "  "${PERF}" "${CNT_ERROR}"   "${CNT_ALL}")"
@@ -1091,6 +1280,8 @@ if [ "$MSG_SYSTEM_UPDATE"   != "" ]; then E_OUTPUT="$(merge_text "${E_OUTPUT}" "
 if [ "$MSG_CORE_ERROR"      != "" ]; then E_OUTPUT="$(merge_text "${E_OUTPUT}" "${MSG_CORE_ERROR}" "\n")";      fi
 if [ "$MSG_CORE_WARNING"    != "" ]; then E_OUTPUT="$(merge_text "${E_OUTPUT}" "${MSG_CORE_WARNING}" "\n")";    fi
 if [ "$MSG_DB_UPDATE"       != "" ]; then E_OUTPUT="$(merge_text "${E_OUTPUT}" "${MSG_DB_UPDATE}" "\n")";       fi
+if [ "$MSG_CRON"	    != "" ]; then E_OUTPUT="$(merge_text "${E_OUTPUT}" "${MSG_CRON}" "\n")";            fi
+if [ "$MSG_WATCHDOG"        != "" ]; then E_OUTPUT="$(merge_text "${E_OUTPUT}" "${MSG_WATCHDOG}" "\n")";        fi
 
 
 #### Log to file?
